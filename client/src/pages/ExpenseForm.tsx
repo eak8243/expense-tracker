@@ -181,10 +181,12 @@ export default function ExpenseForm() {
   };
 
   // ─── Upload all pending files for a given expenseId ──────────────────────────
-  const uploadPendingFiles = async (targetExpenseId: number): Promise<void> => {
-    if (pendingFiles.length === 0) return;
+  // Accept filesToUpload explicitly to avoid stale closure issues
+  const uploadPendingFiles = async (targetExpenseId: number, filesToUpload?: PendingFile[]): Promise<void> => {
+    const files = filesToUpload ?? pendingFilesRef.current;
+    if (files.length === 0) return;
 
-    for (const pf of pendingFiles) {
+    for (const pf of files) {
       setPendingFiles((prev) =>
         prev.map((f) => (f.id === pf.id ? { ...f, status: "uploading", progress: 30 } : f))
       );
@@ -265,7 +267,7 @@ export default function ExpenseForm() {
         const currentFiles = pendingFilesRef.current;
         if (currentFiles.length > 0) {
           toast.info("กำลังอัปโหลดไฟล์หลักฐาน...");
-          await uploadPendingFiles(expenseId!);
+          await uploadPendingFiles(expenseId!, currentFiles);
           const failedCount = pendingFilesRef.current.filter((f) => f.status === "error").length;
           if (failedCount > 0) {
             toast.warning(`อัปเดตสำเร็จ แต่อัปโหลดไฟล์ล้มเหลว ${failedCount} ไฟล์`);
@@ -280,11 +282,11 @@ export default function ExpenseForm() {
         navigate(`/expenses/${expenseId}`);
       } else {
         const result = await createMutation.mutateAsync(payload);
-        // Upload files right after expense is created — use ref to avoid stale closure
+        // Upload files right after expense is created — pass files explicitly to avoid stale closure
         const currentFiles = pendingFilesRef.current;
         if (currentFiles.length > 0) {
           toast.info("กำลังอัปโหลดไฟล์หลักฐาน...");
-          await uploadPendingFiles(result.id);
+          await uploadPendingFiles(result.id, currentFiles);
           const failedCount = pendingFilesRef.current.filter((f) => f.status === "error").length;
           if (failedCount > 0) {
             toast.warning(`บันทึกสำเร็จ แต่อัปโหลดไฟล์ล้มเหลว ${failedCount} ไฟล์`);
