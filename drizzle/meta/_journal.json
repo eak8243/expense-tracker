@@ -15,6 +15,13 @@
       "when": 1781169993464,
       "tag": "0001_wealthy_purple_man",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1781179838769,
+      "tag": "0002_far_banshee",
+      "breakpoints": true
     }
   ]
 }

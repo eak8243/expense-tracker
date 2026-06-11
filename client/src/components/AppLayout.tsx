@@ -19,6 +19,7 @@ import {
   Settings,
   Download,
   User,
+  HardDrive,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -40,6 +41,7 @@ const NAV_ITEMS = [
       { href: "/admin/master-data?tab=companies", label: "จัดการบริษัท", icon: Building2, roles: ["admin"] },
       { href: "/admin/master-data?tab=categories", label: "หมวดหมู่", icon: Tag, roles: ["admin"] },
       { href: "/admin/master-data?tab=paymentMethods", label: "วิธีชำระเงิน", icon: CreditCard, roles: ["admin"] },
+      { href: "/admin/storage-settings", label: "ตั้งค่า Storage", icon: HardDrive, roles: ["admin"] },
     ],
   },
 ];

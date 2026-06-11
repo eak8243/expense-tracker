@@ -116,3 +116,13 @@
 - [x] แสดง progress/loading ระหว่างอัปโหลด
 - [x] รองรับการลบไฟล์ที่เลือกก่อน submit
 - [x] สำหรับหน้า Edit: แสดงไฟล์ที่มีอยู่แล้ว + เพิ่มไฟล์ใหม่ได้
+
+## Feature: Storage Settings UI (Admin)
+- [x] เพิ่ม system_settings table ใน schema สำหรับเก็บ key-value config
+- [x] สร้าง migration SQL และ apply
+- [x] สร้าง backend router: getStorageSettings, saveStorageSettings, testStorageConnection
+- [x] สร้างหน้า AdminStorageSettings.tsx พร้อม form ตั้งค่า S3
+- [x] เพิ่ม sidebar link "ตั้งค่า Storage" ใน Admin section
+- [x] แก้ไข storage.ts ให้อ่านค่าจาก DB แทน env เมื่อมีการตั้งค่าไว้ใน UI
+- [x] ปุ่ม "ทดสอบการเชื่อมต่อ" แสดงผลสำเร็จ/ล้มเหลว
+- [x] แสดง storage type ปัจจุบัน (Manus Built-in / Custom S3)

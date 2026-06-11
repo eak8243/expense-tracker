@@ -6,6 +6,7 @@ import { attachmentsRouter } from "./routers/attachments";
 import { dashboardRouter } from "./routers/dashboard";
 import { adminRouter } from "./routers/admin";
 import { exportRouter } from "./routers/exportRouter";
+import { settingsRouter } from "./routers/settings";
 
 export const appRouter = router({
   system: systemRouter,
@@ -15,6 +16,7 @@ export const appRouter = router({
   dashboard: dashboardRouter,
   admin: adminRouter,
   export: exportRouter,
+  settings: settingsRouter,
 });
 
 export type AppRouter = typeof appRouter;

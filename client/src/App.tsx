@@ -13,6 +13,7 @@ import ExpenseDetail from "./pages/ExpenseDetail";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminUsers from "./pages/admin/AdminUsers";
 import AdminMasterData from "./pages/admin/AdminMasterData";
+import AdminStorageSettings from "./pages/AdminStorageSettings";
 
 function ProtectedRoute({ component: Component, adminOnly = false }: { component: React.ComponentType; adminOnly?: boolean }) {
   const { user, loading } = useAuth();
@@ -66,6 +67,9 @@ function Router() {
       </Route>
       <Route path="/admin/master-data">
         <ProtectedRoute component={AdminMasterData} adminOnly />
+      </Route>
+      <Route path="/admin/storage-settings">
+        <ProtectedRoute component={AdminStorageSettings} adminOnly />
       </Route>
 
       <Route path="/404" component={NotFound} />

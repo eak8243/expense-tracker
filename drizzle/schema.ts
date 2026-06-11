@@ -232,3 +232,17 @@ export const expenseNumberSeq = mysqlTable("expense_number_seq", {
   year: int("year").notNull(),
   lastSeq: int("lastSeq").default(0).notNull(),
 });
+
+// ─── System Settings (key-value store for app config) ────────────────────────
+export const systemSettings = mysqlTable("system_settings", {
+  id: int("id").autoincrement().primaryKey(),
+  settingKey: varchar("settingKey", { length: 128 }).notNull().unique(),
+  settingValue: text("settingValue"),
+  isEncrypted: boolean("isEncrypted").default(false).notNull(),
+  description: varchar("description", { length: 255 }),
+  updatedBy: int("updatedBy").references(() => users.id),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type SystemSetting = typeof systemSettings.$inferSelect;
+export type InsertSystemSetting = typeof systemSettings.$inferInsert;
