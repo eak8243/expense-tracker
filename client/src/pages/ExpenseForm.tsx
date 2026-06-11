@@ -229,56 +229,17 @@ export default function ExpenseForm() {
   };
 
   // ─── Create mutation ─────────────────────────────────────────────────────────
-  const createMutation = trpc.expenses.create.useMutation({
-    onSuccess: async (data) => {
-      // Upload files after expense is created
-      if (pendingFiles.length > 0) {
-        toast.info("กำลังอัปโหลดไฟล์หลักฐาน...");
-        await uploadPendingFiles(data.id);
-        const failedCount = pendingFiles.filter((f) => f.status === "error").length;
-        if (failedCount > 0) {
-          toast.warning(`บันทึกสำเร็จ แต่อัปโหลดไฟล์ล้มเหลว ${failedCount} ไฟล์`);
-        } else {
-          toast.success(`บันทึกค่าใช้จ่าย ${data.expenseNo} และอัปโหลดไฟล์เรียบร้อยแล้ว`);
-        }
-      } else {
-        toast.success(`บันทึกค่าใช้จ่าย ${data.expenseNo} เรียบร้อยแล้ว`);
-      }
-      utils.expenses.list.invalidate();
-      utils.dashboard.mySummary.invalidate();
-      navigate(`/expenses/${data.id}`);
-    },
-    onError: (err) => {
-      toast.error(err.message || "เกิดข้อผิดพลาดในการบันทึก");
-    },
-  });
+  const createMutation = trpc.expenses.create.useMutation();
+  const updateMutation = trpc.expenses.update.useMutation();
 
-  const updateMutation = trpc.expenses.update.useMutation({
-    onSuccess: async () => {
-      // Upload any new files added during edit
-      if (pendingFiles.length > 0) {
-        toast.info("กำลังอัปโหลดไฟล์หลักฐาน...");
-        await uploadPendingFiles(expenseId!);
-        const failedCount = pendingFiles.filter((f) => f.status === "error").length;
-        if (failedCount > 0) {
-          toast.warning(`อัปเดตสำเร็จ แต่อัปโหลดไฟล์ล้มเหลว ${failedCount} ไฟล์`);
-        } else {
-          toast.success("อัปเดตค่าใช้จ่ายและอัปโหลดไฟล์เรียบร้อยแล้ว");
-        }
-      } else {
-        toast.success("อัปเดตค่าใช้จ่ายเรียบร้อยแล้ว");
-      }
-      utils.expenses.list.invalidate();
-      utils.expenses.getById.invalidate({ id: expenseId! });
-      navigate(`/expenses/${expenseId}`);
-    },
-    onError: (err) => {
-      toast.error(err.message || "เกิดข้อผิดพลาดในการอัปเดต");
-    },
-  });
+  // Use a ref to always access the latest pendingFiles without stale closure
+  const pendingFilesRef = useRef<PendingFile[]>([]);
+  useEffect(() => {
+    pendingFilesRef.current = pendingFiles;
+  }, [pendingFiles]);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const onSubmit = (data: any) => {
+  const onSubmit = async (data: any) => {
     const payload = {
       companyId: parseInt(data.companyId),
       expenseType: data.expenseType,
@@ -297,10 +258,48 @@ export default function ExpenseForm() {
       note: data.note || undefined,
     };
 
-    if (isEdit) {
-      updateMutation.mutate({ id: expenseId!, ...payload });
-    } else {
-      createMutation.mutate(payload);
+    try {
+      if (isEdit) {
+        await updateMutation.mutateAsync({ id: expenseId!, ...payload });
+        // Upload any new files added during edit
+        const currentFiles = pendingFilesRef.current;
+        if (currentFiles.length > 0) {
+          toast.info("กำลังอัปโหลดไฟล์หลักฐาน...");
+          await uploadPendingFiles(expenseId!);
+          const failedCount = pendingFilesRef.current.filter((f) => f.status === "error").length;
+          if (failedCount > 0) {
+            toast.warning(`อัปเดตสำเร็จ แต่อัปโหลดไฟล์ล้มเหลว ${failedCount} ไฟล์`);
+          } else {
+            toast.success("อัปเดตค่าใช้จ่ายและอัปโหลดไฟล์เรียบร้อยแล้ว");
+          }
+        } else {
+          toast.success("อัปเดตค่าใช้จ่ายเรียบร้อยแล้ว");
+        }
+        utils.expenses.list.invalidate();
+        utils.expenses.getById.invalidate({ id: expenseId! });
+        navigate(`/expenses/${expenseId}`);
+      } else {
+        const result = await createMutation.mutateAsync(payload);
+        // Upload files right after expense is created — use ref to avoid stale closure
+        const currentFiles = pendingFilesRef.current;
+        if (currentFiles.length > 0) {
+          toast.info("กำลังอัปโหลดไฟล์หลักฐาน...");
+          await uploadPendingFiles(result.id);
+          const failedCount = pendingFilesRef.current.filter((f) => f.status === "error").length;
+          if (failedCount > 0) {
+            toast.warning(`บันทึกสำเร็จ แต่อัปโหลดไฟล์ล้มเหลว ${failedCount} ไฟล์`);
+          } else {
+            toast.success(`บันทึกค่าใช้จ่าย ${result.expenseNo} และอัปโหลดไฟล์เรียบร้อยแล้ว`);
+          }
+        } else {
+          toast.success(`บันทึกค่าใช้จ่าย ${result.expenseNo} เรียบร้อยแล้ว`);
+        }
+        utils.expenses.list.invalidate();
+        utils.dashboard.mySummary.invalidate();
+        navigate(`/expenses/${result.id}`);
+      }
+    } catch (err: any) {
+      toast.error(err.message || "เกิดข้อผิดพลาดในการบันทึก");
     }
   };
 

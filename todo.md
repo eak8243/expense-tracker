@@ -142,3 +142,8 @@
 - [x] ExpenseDetail: ปรับ layout เป็น single column บน mobile
 - [x] Export page: ปรับ filter form บน mobile
 - [x] Admin pages: ปรับ table/form บน mobile
+
+## Bug Fix: ไฟล์แนบไม่ถูก Upload เมื่อบันทึกค่าใช้จ่ายใหม่
+- [x] ตรวจสอบ upload flow ใน ExpenseForm.tsx หลัง create mutation สำเร็จ
+- [x] แก้ไข bug ที่ทำให้ไฟล์ไม่ถูก upload ไปยัง storage (stale closure ใน onSuccess callback)
+- [x] ทดสอบ flow: เลือกไฟล์ → บันทึก → ตรวจสอบว่าไฟล์ปรากฏในหน้า Detail
