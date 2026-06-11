@@ -37,9 +37,9 @@ const NAV_ITEMS = [
     adminOnly: true,
     items: [
       { href: "/admin/users", label: "จัดการผู้ใช้", icon: Users, roles: ["admin"] },
-      { href: "/admin/companies", label: "จัดการบริษัท", icon: Building2, roles: ["admin"] },
-      { href: "/admin/categories", label: "หมวดหมู่", icon: Tag, roles: ["admin"] },
-      { href: "/admin/payment-methods", label: "วิธีชำระเงิน", icon: CreditCard, roles: ["admin"] },
+      { href: "/admin/master-data?tab=companies", label: "จัดการบริษัท", icon: Building2, roles: ["admin"] },
+      { href: "/admin/master-data?tab=categories", label: "หมวดหมู่", icon: Tag, roles: ["admin"] },
+      { href: "/admin/master-data?tab=paymentMethods", label: "วิธีชำระเงิน", icon: CreditCard, roles: ["admin"] },
     ],
   },
 ];
@@ -102,7 +102,12 @@ export function AppLayout({ children }: AppLayoutProps) {
               </p>
               <div className="space-y-0.5">
                 {visibleItems.map((item) => {
-                  const isActive = location === item.href || (item.href !== "/" && location.startsWith(item.href));
+                  const itemPath = item.href.split("?")[0];
+                  const itemTab = new URLSearchParams(item.href.split("?")[1] ?? "").get("tab");
+                  const currentTab = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("tab") : null;
+                  const isActive = itemTab
+                    ? location === itemPath && currentTab === itemTab
+                    : (location === item.href || (item.href !== "/" && location.startsWith(item.href)));
                   const Icon = item.icon;
                   return (
                     <Link

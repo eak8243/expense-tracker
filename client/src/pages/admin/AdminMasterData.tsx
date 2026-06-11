@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { AppLayout } from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
@@ -13,7 +14,33 @@ import { Badge } from "@/components/ui/badge";
 import { Building2, Tag, CreditCard, Plus, Edit, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
+const VALID_TABS = ["companies", "categories", "paymentMethods"] as const;
+type TabValue = typeof VALID_TABS[number];
+
+function getTabFromSearch(): TabValue {
+  if (typeof window === "undefined") return "companies";
+  const t = new URLSearchParams(window.location.search).get("tab");
+  return (VALID_TABS as readonly string[]).includes(t ?? "") ? (t as TabValue) : "companies";
+}
+
 export default function AdminMasterData() {
+  const [, navigate] = useLocation();
+  const [activeTab, setActiveTab] = useState<TabValue>(getTabFromSearch);
+
+  // Sync tab when URL changes (e.g. clicking sidebar links)
+  useEffect(() => {
+    const handler = () => setActiveTab(getTabFromSearch());
+    window.addEventListener("popstate", handler);
+    // Also run on mount in case navigation happened without popstate
+    setActiveTab(getTabFromSearch());
+    return () => window.removeEventListener("popstate", handler);
+  }, []);
+
+  const handleTabChange = (val: string) => {
+    setActiveTab(val as TabValue);
+    navigate(`/admin/master-data?tab=${val}`);
+  };
+
   return (
     <AppLayout>
       <div className="p-6 max-w-5xl mx-auto space-y-5">
@@ -22,7 +49,7 @@ export default function AdminMasterData() {
           <p className="text-muted-foreground text-sm mt-0.5">จัดการข้อมูลพื้นฐานของระบบ</p>
         </div>
 
-        <Tabs defaultValue="companies">
+        <Tabs value={activeTab} onValueChange={handleTabChange}>
           <TabsList>
             <TabsTrigger value="companies" className="gap-2">
               <Building2 className="w-4 h-4" />

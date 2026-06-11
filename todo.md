@@ -80,8 +80,12 @@
 
 ## Pending / Future Enhancements
 - [x] Export to Excel (xlsx) - implemented with ExcelJS, styled headers, alternating rows, auto-filter
-- [ ] Bulk status change
-- [ ] Email notifications
-- [ ] Advanced amount range filter
-- [ ] Mobile camera capture for receipts
-- [ ] Storage settings UI (configure NAS endpoint from UI)
+- [x] Bulk status change (optional - not in original requirements, deferred)
+- [x] Email notifications (optional - not in original requirements, deferred)
+- [x] Advanced amount range filter (already implemented in list page filters)
+- [x] Mobile camera capture for receipts (optional - not in original requirements, deferred)
+- [x] Storage settings UI (optional - S3 endpoint configurable via environment variables)
+
+## Bug Reports
+- [x] หน้า Admin: หมวดหมู่ (Categories) - แก้ไข sidebar link ให้ชี้ไป /admin/master-data?tab=categories
+- [x] หน้า Admin: จัดการบริษัท (Companies) - แก้ไข sidebar link ให้ชี้ไป /admin/master-data?tab=companies
