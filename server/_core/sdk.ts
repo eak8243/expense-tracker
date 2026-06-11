@@ -277,6 +277,16 @@ class SDKServer {
 
     const sessionUserId = session.openId;
     const signedInAt = new Date();
+
+    // Handle local username/password login (openId = "local:{id}")
+    if (sessionUserId.startsWith("local:")) {
+      const localId = parseInt(sessionUserId.slice(6), 10);
+      if (isNaN(localId)) throw ForbiddenError("Invalid local session");
+      const localUser = await db.getUserById(localId);
+      if (!localUser || !localUser.isActive) throw ForbiddenError("User not found or inactive");
+      return localUser;
+    }
+
     let user = await db.getUserByOpenId(sessionUserId);
 
     // If user not in DB, sync from OAuth server automatically

@@ -72,6 +72,12 @@
 - [x] Error handling and loading states
 - [x] Final checkpoint
 
+## Bug Fixes
+- [x] แก้ไขปัญหา Login: session cookie ไม่ถูก set หลัง login (authenticateRequest ไม่รองรับ local:ID prefix)
+- [x] แก้ไขปัญหา Login: ใช้ utils.auth.me.invalidate() แทน refetch() เพื่อหลีกเลี่ยง race condition
+- [x] แก้ไขปัญหา Dashboard: ONLY_FULL_GROUP_BY MySQL mode ใน getMonthlyTrend query
+- [x] อัปเดต passwordHash ของ seed users ให้ถูกต้อง
+
 ## Pending / Future Enhancements
 - [ ] Export to Excel (xlsx) - currently CSV only
 - [ ] Bulk status change

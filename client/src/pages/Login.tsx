@@ -4,7 +4,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
-import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,7 +20,7 @@ type LoginForm = z.infer<typeof loginSchema>;
 
 export default function Login() {
   const [, navigate] = useLocation();
-  const { refetch } = useAuth();
+  const utils = trpc.useUtils();
   const [error, setError] = useState<string | null>(null);
 
   const {
@@ -32,7 +31,8 @@ export default function Login() {
 
   const loginMutation = trpc.auth.login.useMutation({
     onSuccess: async () => {
-      await refetch();
+      // Invalidate auth.me cache so it refetches with the new session cookie
+      await utils.auth.me.invalidate();
       navigate("/");
     },
     onError: (err) => {

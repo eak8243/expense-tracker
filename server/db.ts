@@ -500,20 +500,19 @@ export async function getMonthlyTrend(userId?: number, months = 12) {
   const db = await getDb();
   if (!db) return [];
 
-  const conditions = userId ? [eq(expenses.userId, userId)] : [];
-  const where = conditions.length > 0 ? and(...conditions) : undefined;
-
-  return db
-    .select({
-      month: sql<string>`DATE_FORMAT(${expenses.expenseDate}, '%Y-%m')`,
-      totalAmount: sql<string>`SUM(${expenses.amount})`,
-      count: sql<number>`COUNT(*)`,
-    })
-    .from(expenses)
-    .where(where)
-    .groupBy(sql`DATE_FORMAT(${expenses.expenseDate}, '%Y-%m')`)
-    .orderBy(sql`DATE_FORMAT(${expenses.expenseDate}, '%Y-%m')`)
-    .limit(months);
+  // Use raw SQL to avoid ONLY_FULL_GROUP_BY issues with Drizzle's sql template
+  const conn = (db as any).session?.client ?? (db as any)._client;
+  if (userId) {
+    const [rows] = await (db as any).execute(
+      sql`SELECT DATE_FORMAT(expenseDate, '%Y-%m') AS month, SUM(amount) AS totalAmount, COUNT(*) AS count FROM expenses WHERE userId = ${userId} GROUP BY month ORDER BY month LIMIT ${months}`
+    );
+    return rows as { month: string; totalAmount: string; count: number }[];
+  } else {
+    const [rows] = await (db as any).execute(
+      sql`SELECT DATE_FORMAT(expenseDate, '%Y-%m') AS month, SUM(amount) AS totalAmount, COUNT(*) AS count FROM expenses GROUP BY month ORDER BY month LIMIT ${months}`
+    );
+    return rows as { month: string; totalAmount: string; count: number }[];
+  }
 }
 
 export async function getExpenseByCompany(userId?: number) {
