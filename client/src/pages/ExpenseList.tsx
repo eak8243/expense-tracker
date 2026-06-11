@@ -58,6 +58,7 @@ export default function ExpenseList() {
   const categories = masterData?.categories ?? [];
   const paymentMethods = masterData?.paymentMethods ?? [];
   const exportCsv = trpc.export.csv.useMutation();
+  const exportExcel = trpc.export.excel.useMutation();
 
   const { data: expensesData, isLoading } = trpc.expenses.list.useQuery({
     keyword: search || undefined,
@@ -119,6 +120,31 @@ export default function ExpenseList() {
     }
   };
 
+  const handleExportExcel = async () => {
+    try {
+      const result = await exportExcel.mutateAsync({
+        status: status !== "all" ? status : undefined,
+        expenseType: expenseType !== "all" ? expenseType : undefined,
+        companyId: companyId !== "all" ? parseInt(companyId) : undefined,
+        dateFrom: dateFrom ? new Date(dateFrom) : undefined,
+        dateTo: dateTo ? new Date(dateTo) : undefined,
+      });
+      const byteChars = atob(result.content);
+      const byteNums = new Array(byteChars.length);
+      for (let i = 0; i < byteChars.length; i++) byteNums[i] = byteChars.charCodeAt(i);
+      const blob = new Blob([new Uint8Array(byteNums)], { type: result.mimeType });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = result.filename;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success('Export Excel สำเร็จ');
+    } catch {
+      toast.error('ไม่สามารถ Export Excel ได้');
+    }
+  };
+
   return (
     <AppLayout>
       <div className="p-6 max-w-7xl mx-auto space-y-5">
@@ -141,7 +167,11 @@ export default function ExpenseList() {
             )}
             <Button variant="outline" className="gap-2" onClick={handleExport} disabled={exportCsv.isPending}>
               <Download className="w-4 h-4" />
-              Export CSV
+              CSV
+            </Button>
+            <Button variant="outline" className="gap-2" onClick={handleExportExcel} disabled={exportExcel.isPending}>
+              <Download className="w-4 h-4" />
+              Excel
             </Button>
           </div>
         </div>

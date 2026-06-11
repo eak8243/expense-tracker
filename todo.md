@@ -79,7 +79,7 @@
 - [x] อัปเดต passwordHash ของ seed users ให้ถูกต้อง
 
 ## Pending / Future Enhancements
-- [ ] Export to Excel (xlsx) - currently CSV only
+- [x] Export to Excel (xlsx) - implemented with ExcelJS, styled headers, alternating rows, auto-filter
 - [ ] Bulk status change
 - [ ] Email notifications
 - [ ] Advanced amount range filter
