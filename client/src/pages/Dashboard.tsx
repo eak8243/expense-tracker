@@ -1,0 +1,323 @@
+import { useMemo } from "react";
+import { Link } from "wouter";
+import { trpc } from "@/lib/trpc";
+import { useAuth } from "@/contexts/AuthContext";
+import { AppLayout } from "@/components/AppLayout";
+import { StatusBadge } from "@/components/StatusBadge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  Legend,
+} from "recharts";
+import {
+  TrendingUp,
+  Clock,
+  FileCheck,
+  CheckCircle2,
+  PlusCircle,
+  ArrowRight,
+  Wallet,
+  AlertCircle,
+} from "lucide-react";
+
+function formatAmount(amount: string | number | null | undefined): string {
+  if (amount === null || amount === undefined || amount === "") return "0.00";
+  const num = typeof amount === "string" ? parseFloat(amount) : amount;
+  return new Intl.NumberFormat("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(num);
+}
+
+const COLORS = ["#0d9488", "#3b82f6", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899"];
+
+export default function Dashboard() {
+  const { user } = useAuth();
+  const isAdminOrViewer = user?.role === "admin" || user?.role === "viewer";
+
+  const { data: myData, isLoading: myLoading } = trpc.dashboard.mySummary.useQuery(undefined, {
+    enabled: !isAdminOrViewer,
+  });
+  const { data: adminData, isLoading: adminLoading } = trpc.dashboard.adminSummary.useQuery(undefined, {
+    enabled: isAdminOrViewer,
+  });
+  const { data: trendData, isLoading: trendLoading } = isAdminOrViewer
+    ? trpc.dashboard.adminMonthlyTrend.useQuery({ months: 12 })
+    : trpc.dashboard.myMonthlyTrend.useQuery({ months: 12 });
+
+  const data = isAdminOrViewer ? adminData : myData;
+  const isLoading = isAdminOrViewer ? adminLoading : myLoading;
+
+  const summaryCards = useMemo(() => {
+    if (!data?.summary) return [];
+    const s = data.summary as any;
+    return [
+      {
+        title: "ยอดรวมทั้งหมด",
+        value: formatAmount(s.totalAmount),
+        icon: Wallet,
+        color: "text-slate-700",
+        bg: "bg-slate-100",
+      },
+      {
+        title: "รอทำเบิก (ร่าง)",
+        value: formatAmount(s.draftAmount),
+        count: Number(s.draftCount ?? 0),
+        icon: Clock,
+        color: "text-amber-700",
+        bg: "bg-amber-100",
+      },
+      {
+        title: "ทำเบิกแล้ว",
+        value: formatAmount(s.claimedAmount),
+        count: Number(s.claimedCount ?? 0),
+        icon: FileCheck,
+        color: "text-blue-700",
+        bg: "bg-blue-100",
+      },
+      {
+        title: "ได้เงินแล้ว",
+        value: formatAmount(s.reimbursedAmount),
+        count: Number(s.reimbursedCount ?? 0),
+        icon: CheckCircle2,
+        color: "text-emerald-700",
+        bg: "bg-emerald-100",
+      },
+    ];
+  }, [data]);
+
+  const trendChartData = useMemo(() => {
+    if (!trendData) return [];
+    return trendData.map((row) => ({
+      month: row.month,
+      amount: parseFloat(row.totalAmount ?? "0"),
+      count: Number(row.count ?? 0),
+    }));
+  }, [trendData]);
+
+  const categoryChartData = useMemo(() => {
+    if (!data?.byCategory) return [];
+    return data.byCategory.slice(0, 6).map((row) => ({
+      name: row.categoryName ?? "ไม่ระบุ",
+      value: parseFloat(row.totalAmount ?? "0"),
+    }));
+  }, [data]);
+
+  return (
+    <AppLayout>
+      <div className="p-6 max-w-7xl mx-auto space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-foreground">
+              {isAdminOrViewer ? "แดชบอร์ดภาพรวม" : "แดชบอร์ดของฉัน"}
+            </h1>
+            <p className="text-muted-foreground text-sm mt-0.5">
+              สวัสดี คุณ{user?.name || user?.username} — ยินดีต้อนรับกลับมา
+            </p>
+          </div>
+          {user?.role !== "viewer" && (
+            <Link href="/expenses/new">
+              <Button className="gap-2">
+                <PlusCircle className="w-4 h-4" />
+                บันทึกค่าใช้จ่าย
+              </Button>
+            </Link>
+          )}
+        </div>
+
+        {/* Summary Cards */}
+        {isLoading ? (
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            {[...Array(4)].map((_, i) => (
+              <Skeleton key={i} className="h-28 rounded-xl" />
+            ))}
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            {summaryCards.map((card) => {
+              const Icon = card.icon;
+              return (
+                <Card key={card.title} className="border shadow-sm hover:shadow-md transition-shadow">
+                  <CardContent className="p-4">
+                    <div className="flex items-start justify-between mb-3">
+                      <div className={`w-9 h-9 rounded-lg ${card.bg} flex items-center justify-center`}>
+                        <Icon className={`w-5 h-5 ${card.color}`} />
+                      </div>
+                      {card.count !== undefined && (
+                        <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
+                          {card.count} รายการ
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground mb-1">{card.title}</p>
+                    <p className="text-xl font-bold tabular-nums text-foreground">
+                      ฿{card.value}
+                    </p>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        )}
+
+        {/* IOU Summary */}
+        {data?.summary && (
+          <Card className="border shadow-sm">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-orange-500" />
+                สรุปเงินทดรองจ่าย (IOU)
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-3 gap-4">
+                <div className="text-center p-3 rounded-lg bg-muted/50">
+                  <p className="text-xs text-muted-foreground mb-1">ยอดรวม IOU</p>
+                  <p className="text-lg font-bold tabular-nums">฿{formatAmount(data.summary.iouTotalAmount)}</p>
+                </div>
+                <div className="text-center p-3 rounded-lg bg-blue-50">
+                  <p className="text-xs text-blue-600 mb-1">ทำเบิกแล้ว</p>
+                  <p className="text-lg font-bold tabular-nums text-blue-700">฿{formatAmount((data.summary as any).iouClaimedAmount)}</p>
+                </div>
+                <div className="text-center p-3 rounded-lg bg-emerald-50">
+                  <p className="text-xs text-emerald-600 mb-1">ได้เงินแล้ว</p>
+                  <p className="text-lg font-bold tabular-nums text-emerald-700">฿{formatAmount((data.summary as any).iouReimbursedAmount)}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Charts */}
+        <div className="grid lg:grid-cols-3 gap-6">
+          {/* Monthly Trend */}
+          <Card className="lg:col-span-2 border shadow-sm">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <TrendingUp className="w-4 h-4 text-primary" />
+                  แนวโน้มรายเดือน
+                </CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {trendLoading ? (
+                <Skeleton className="h-48" />
+              ) : trendChartData.length === 0 ? (
+                <div className="h-48 flex items-center justify-center text-muted-foreground text-sm">
+                  ยังไม่มีข้อมูล
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height={200}>
+                  <BarChart data={trendChartData} margin={{ top: 5, right: 5, bottom: 5, left: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                    <XAxis dataKey="month" tick={{ fontSize: 11 }} />
+                    <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `฿${(v / 1000).toFixed(0)}k`} />
+                    <Tooltip
+                      formatter={(value: number) => [`฿${formatAmount(value)}`, "ยอดรวม"]}
+                      labelStyle={{ fontFamily: "Sarabun" }}
+                    />
+                    <Bar dataKey="amount" fill="var(--color-accent)" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Category Breakdown */}
+          <Card className="border shadow-sm">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">ตามหมวดหมู่</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {isLoading ? (
+                <Skeleton className="h-48" />
+              ) : categoryChartData.length === 0 ? (
+                <div className="h-48 flex items-center justify-center text-muted-foreground text-sm">
+                  ยังไม่มีข้อมูล
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height={200}>
+                  <PieChart>
+                    <Pie
+                      data={categoryChartData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={50}
+                      outerRadius={80}
+                      dataKey="value"
+                    >
+                      {categoryChartData.map((_, index) => (
+                        <Cell key={index} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip formatter={(value: number) => [`฿${formatAmount(value)}`, ""]} />
+                    <Legend
+                      formatter={(value) => <span style={{ fontSize: 11 }}>{value}</span>}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Recent Expenses */}
+        <Card className="border shadow-sm">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base">รายการล่าสุด</CardTitle>
+              <Link href="/expenses">
+                <Button variant="ghost" size="sm" className="gap-1 text-xs">
+                  ดูทั้งหมด <ArrowRight className="w-3 h-3" />
+                </Button>
+              </Link>
+            </div>
+          </CardHeader>
+          <CardContent className="p-0">
+            {isLoading ? (
+              <div className="p-4 space-y-3">
+                {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-12" />)}
+              </div>
+            ) : !data?.recent || data.recent.length === 0 ? (
+              <div className="p-8 text-center text-muted-foreground text-sm">
+                ยังไม่มีรายการค่าใช้จ่าย
+              </div>
+            ) : (
+              <div className="divide-y divide-border">
+                {data.recent.map((expense) => (
+                  <Link key={expense.id} href={`/expenses/${expense.id}`}>
+                    <div className="flex items-center gap-4 px-6 py-3.5 hover:bg-muted/50 cursor-pointer transition-colors">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{expense.itemName}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {expense.expenseNo} · {expense.companyName}
+                          {isAdminOrViewer && expense.userName && ` · ${expense.userName}`}
+                        </p>
+                      </div>
+                      <div className="text-right flex-shrink-0">
+                        <p className="text-sm font-semibold tabular-nums">
+                          ฿{formatAmount(expense.amount)}
+                        </p>
+                        <StatusBadge status={expense.status} showIcon={false} />
+                      </div>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </AppLayout>
+  );
+}

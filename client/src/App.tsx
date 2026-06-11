@@ -1,39 +1,89 @@
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/NotFound";
-import { Route, Switch } from "wouter";
+import { Route, Switch, Redirect } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
-import Home from "./pages/Home";
+import { AuthProvider, useAuth } from "./contexts/AuthContext";
+import Login from "./pages/Login";
+import Dashboard from "./pages/Dashboard";
+import ExpenseList from "./pages/ExpenseList";
+import ExpenseForm from "./pages/ExpenseForm";
+import ExpenseDetail from "./pages/ExpenseDetail";
+import AdminDashboard from "./pages/admin/AdminDashboard";
+import AdminUsers from "./pages/admin/AdminUsers";
+import AdminMasterData from "./pages/admin/AdminMasterData";
+
+function ProtectedRoute({ component: Component, adminOnly = false }: { component: React.ComponentType; adminOnly?: boolean }) {
+  const { user, loading } = useAuth();
+
+  if (loading) return null;
+  if (!user) return <Redirect to="/login" />;
+  if (adminOnly && user.role !== "admin") return <Redirect to="/" />;
+
+  return <Component />;
+}
 
 function Router() {
-  // make sure to consider if you need authentication for certain routes
+  const { user, loading } = useAuth();
+
+  if (loading) return null;
+
   return (
     <Switch>
-      <Route path={"/"} component={Home} />
-      <Route path={"/404"} component={NotFound} />
-      {/* Final fallback route */}
+      <Route path="/login" component={Login} />
+
+      {/* Redirect root to dashboard */}
+      <Route path="/">
+        {user ? <Redirect to="/dashboard" /> : <Redirect to="/login" />}
+      </Route>
+
+      {/* Dashboard */}
+      <Route path="/dashboard">
+        <ProtectedRoute component={Dashboard} />
+      </Route>
+
+      {/* Expenses */}
+      <Route path="/expenses">
+        <ProtectedRoute component={ExpenseList} />
+      </Route>
+      <Route path="/expenses/new">
+        <ProtectedRoute component={ExpenseForm} />
+      </Route>
+      <Route path="/expenses/:id/edit">
+        <ProtectedRoute component={ExpenseForm} />
+      </Route>
+      <Route path="/expenses/:id">
+        <ProtectedRoute component={ExpenseDetail} />
+      </Route>
+
+      {/* Admin */}
+      <Route path="/admin">
+        <ProtectedRoute component={AdminDashboard} adminOnly />
+      </Route>
+      <Route path="/admin/users">
+        <ProtectedRoute component={AdminUsers} adminOnly />
+      </Route>
+      <Route path="/admin/master-data">
+        <ProtectedRoute component={AdminMasterData} adminOnly />
+      </Route>
+
+      <Route path="/404" component={NotFound} />
       <Route component={NotFound} />
     </Switch>
   );
 }
 
-// NOTE: About Theme
-// - First choose a default theme according to your design style (dark or light bg), than change color palette in index.css
-//   to keep consistent foreground/background color across components
-// - If you want to make theme switchable, pass `switchable` ThemeProvider and use `useTheme` hook
-
 function App() {
   return (
     <ErrorBoundary>
-      <ThemeProvider
-        defaultTheme="light"
-        // switchable
-      >
-        <TooltipProvider>
-          <Toaster />
-          <Router />
-        </TooltipProvider>
+      <ThemeProvider defaultTheme="light">
+        <AuthProvider>
+          <TooltipProvider>
+            <Toaster richColors position="top-right" />
+            <Router />
+          </TooltipProvider>
+        </AuthProvider>
       </ThemeProvider>
     </ErrorBoundary>
   );

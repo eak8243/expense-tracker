@@ -1,0 +1,751 @@
+import { useState, useRef } from "react";
+import { Link, useParams, useLocation } from "wouter";
+import { trpc } from "@/lib/trpc";
+import { useAuth } from "@/contexts/AuthContext";
+import { AppLayout } from "@/components/AppLayout";
+import { StatusBadge, EXPENSE_TYPE_LABELS } from "@/components/StatusBadge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  ArrowLeft,
+  Edit,
+  Trash2,
+  Upload,
+  FileText,
+  Image,
+  Download,
+  CheckCircle2,
+  FileCheck,
+  RotateCcw,
+  Clock,
+  Building2,
+  Calendar,
+  Tag,
+  CreditCard,
+  User,
+  Loader2,
+  AlertTriangle,
+  Plus,
+} from "lucide-react";
+import { toast } from "sonner";
+import { format } from "date-fns";
+import { th } from "date-fns/locale";
+
+function formatAmount(v: string | number | null | undefined) {
+  if (v === null || v === undefined) return "0.00";
+  const n = typeof v === "string" ? parseFloat(v) : v;
+  return new Intl.NumberFormat("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
+}
+
+function formatDate(d: Date | string | null | undefined) {
+  if (!d) return "—";
+  try {
+    return format(new Date(d), "d MMM yyyy", { locale: th });
+  } catch {
+    return String(d);
+  }
+}
+
+const ACTION_LABELS: Record<string, string> = {
+  created: "สร้างรายการ",
+  updated: "แก้ไขข้อมูล",
+  status_changed: "เปลี่ยนสถานะ",
+  attachment_uploaded: "อัปโหลดไฟล์",
+  attachment_deleted: "ลบไฟล์",
+  reimbursement_proof_uploaded: "อัปโหลดหลักฐานรับเงิน",
+  iou_document_uploaded: "อัปโหลดเอกสาร IOU",
+  reverted_status: "ย้อนสถานะ",
+  admin_corrected: "แก้ไขโดยผู้ดูแล",
+};
+
+const ATTACHMENT_TYPE_LABELS: Record<string, string> = {
+  expense_proof: "ใบเสร็จ/หลักฐาน",
+  reimbursement_proof: "หลักฐานรับเงินคืน",
+  iou_document: "เอกสาร IOU",
+};
+
+export default function ExpenseDetail() {
+  const params = useParams<{ id: string }>();
+  const [, navigate] = useLocation();
+  const { user } = useAuth();
+  const expenseId = parseInt(params.id);
+
+  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
+  const [uploadType, setUploadType] = useState<"expense_proof" | "reimbursement_proof" | "iou_document">("expense_proof");
+  const [reimbursedAmount, setReimbursedAmount] = useState("");
+  const [reimbursedDialogOpen, setReimbursedDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const utils = trpc.useUtils();
+
+  const { data: expense, isLoading } = trpc.expenses.getById.useQuery({ id: expenseId });
+  const { data: history } = trpc.expenses.history.useQuery({ id: expenseId, order: "desc" });
+
+  const markClaimedMutation = trpc.expenses.markClaimed.useMutation({
+    onSuccess: () => {
+      toast.success("เปลี่ยนสถานะเป็นทำเบิกแล้วเรียบร้อย");
+      utils.expenses.getById.invalidate({ id: expenseId });
+      utils.dashboard.mySummary.invalidate();
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const markReimbursedMutation = trpc.expenses.markReimbursed.useMutation({
+    onSuccess: () => {
+      toast.success("เปลี่ยนสถานะเป็นได้เงินแล้วเรียบร้อย");
+      setReimbursedDialogOpen(false);
+      utils.expenses.getById.invalidate({ id: expenseId });
+      utils.dashboard.mySummary.invalidate();
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const revertToDraftMutation = trpc.expenses.revertToDraft.useMutation({
+    onSuccess: () => {
+      toast.success("ย้อนสถานะเป็นร่างเรียบร้อย");
+      utils.expenses.getById.invalidate({ id: expenseId });
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const revertToClaimedMutation = trpc.expenses.revertToClaimed.useMutation({
+    onSuccess: () => {
+      toast.success("ย้อนสถานะเป็นทำเบิกแล้วเรียบร้อย");
+      utils.expenses.getById.invalidate({ id: expenseId });
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const deleteExpenseMutation = trpc.expenses.delete.useMutation({
+    onSuccess: () => {
+      toast.success("ลบรายการเรียบร้อยแล้ว");
+      utils.expenses.list.invalidate();
+      navigate("/expenses");
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const deleteAttachmentMutation = trpc.attachments.delete.useMutation({
+    onSuccess: () => {
+      toast.success("ลบไฟล์เรียบร้อยแล้ว");
+      utils.expenses.getById.invalidate({ id: expenseId });
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const uploadAttachmentMutation = trpc.attachments.upload.useMutation({
+    onSuccess: () => {
+      toast.success("อัปโหลดไฟล์เรียบร้อยแล้ว");
+      setUploadDialogOpen(false);
+      utils.expenses.getById.invalidate({ id: expenseId });
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error("ขนาดไฟล์เกิน 10 MB");
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const reader = new FileReader();
+      reader.onload = async (ev) => {
+        const base64 = (ev.target?.result as string).split(",")[1];
+        await uploadAttachmentMutation.mutateAsync({
+          expenseId,
+          attachmentType: uploadType,
+          fileName: file.name,
+          fileType: file.type,
+          fileSize: file.size,
+          fileData: base64,
+        });
+        setUploading(false);
+        if (fileInputRef.current) fileInputRef.current.value = "";
+      };
+      reader.readAsDataURL(file);
+    } catch {
+      setUploading(false);
+    }
+  };
+
+  const openUploadDialog = (type: typeof uploadType) => {
+    setUploadType(type);
+    setUploadDialogOpen(true);
+  };
+
+  if (isLoading) {
+    return (
+      <AppLayout>
+        <div className="p-6 max-w-4xl mx-auto space-y-4">
+          <Skeleton className="h-10 w-48" />
+          <Skeleton className="h-48 rounded-xl" />
+          <Skeleton className="h-32 rounded-xl" />
+        </div>
+      </AppLayout>
+    );
+  }
+
+  if (!expense) {
+    return (
+      <AppLayout>
+        <div className="p-6 text-center">
+          <p className="text-muted-foreground">ไม่พบรายการค่าใช้จ่าย</p>
+          <Link href="/expenses">
+            <Button variant="link" className="mt-2">กลับไปรายการ</Button>
+          </Link>
+        </div>
+      </AppLayout>
+    );
+  }
+
+  const canEdit = user?.role !== "viewer" && expense.status !== "reimbursed" &&
+    (user?.role === "admin" || expense.userId === user?.id);
+  const canDelete = user?.role !== "viewer" && expense.status === "draft" &&
+    (user?.role === "admin" || expense.userId === user?.id);
+  const canMarkClaimed = canEdit && expense.status === "draft";
+  const canMarkReimbursed = canEdit && expense.status === "claimed";
+  const canRevertToDraft = canEdit && expense.status === "claimed";
+  const canRevertToClaimed = user?.role === "admin" && expense.status === "reimbursed";
+  const canUpload = canEdit;
+
+  const expenseProofs = expense.attachments?.filter((a: any) => a.attachmentType === "expense_proof") ?? [];
+  const iouDocs = expense.attachments?.filter((a: any) => a.attachmentType === "iou_document") ?? [];
+  const reimbursementProofs = expense.attachments?.filter((a: any) => a.attachmentType === "reimbursement_proof") ?? [];
+
+  return (
+    <AppLayout>
+      <div className="p-6 max-w-4xl mx-auto space-y-6">
+        {/* Header */}
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="icon" onClick={() => navigate("/expenses")}>
+              <ArrowLeft className="w-4 h-4" />
+            </Button>
+            <div>
+              <div className="flex items-center gap-3">
+                <h1 className="text-xl font-bold">{expense.itemName}</h1>
+                <StatusBadge status={expense.status} />
+              </div>
+              <p className="text-muted-foreground text-sm font-mono">{expense.expenseNo}</p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 flex-shrink-0">
+            {canEdit && (
+              <Link href={`/expenses/${expenseId}/edit`}>
+                <Button variant="outline" size="sm" className="gap-1.5">
+                  <Edit className="w-3.5 h-3.5" />
+                  แก้ไข
+                </Button>
+              </Link>
+            )}
+            {canDelete && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5 text-destructive hover:text-destructive border-destructive/30 hover:border-destructive"
+                onClick={() => setDeleteDialogOpen(true)}
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                ลบ
+              </Button>
+            )}
+          </div>
+        </div>
+
+        {/* Status Actions */}
+        {(canMarkClaimed || canMarkReimbursed || canRevertToDraft || canRevertToClaimed) && (
+          <Card className="border-primary/20 bg-primary/5">
+            <CardContent className="py-4">
+              <div className="flex items-center gap-3 flex-wrap">
+                <p className="text-sm font-medium text-muted-foreground">เปลี่ยนสถานะ:</p>
+                {canMarkClaimed && (
+                  <Button
+                    size="sm"
+                    className="gap-1.5 bg-blue-600 hover:bg-blue-500"
+                    onClick={() => markClaimedMutation.mutate({ id: expenseId })}
+                    disabled={markClaimedMutation.isPending}
+                  >
+                    <FileCheck className="w-3.5 h-3.5" />
+                    ทำเบิกแล้ว
+                  </Button>
+                )}
+                {canMarkReimbursed && (
+                  <Button
+                    size="sm"
+                    className="gap-1.5 bg-emerald-600 hover:bg-emerald-500"
+                    onClick={() => setReimbursedDialogOpen(true)}
+                  >
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    ได้เงินแล้ว
+                  </Button>
+                )}
+                {canRevertToDraft && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="gap-1.5"
+                    onClick={() => revertToDraftMutation.mutate({ id: expenseId })}
+                    disabled={revertToDraftMutation.isPending}
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    ย้อนเป็นร่าง
+                  </Button>
+                )}
+                {canRevertToClaimed && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="gap-1.5"
+                    onClick={() => revertToClaimedMutation.mutate({ id: expenseId })}
+                    disabled={revertToClaimedMutation.isPending}
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    ย้อนเป็นทำเบิกแล้ว
+                  </Button>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        <div className="grid lg:grid-cols-3 gap-6">
+          {/* Main Info */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Expense Details */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">รายละเอียดค่าใช้จ่าย</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <InfoRow icon={Building2} label="บริษัท" value={(expense as any).companyName ?? "—"} />
+                  <InfoRow icon={Calendar} label="วันที่" value={formatDate(expense.expenseDate)} />
+                  <InfoRow icon={Tag} label="หมวดหมู่" value={(expense as any).categoryName ?? "—"} />
+                  <InfoRow icon={CreditCard} label="วิธีชำระ" value={(expense as any).paymentMethodName ?? "—"} />
+                  <InfoRow icon={User} label="ผู้บันทึก" value={(expense as any).userName ?? "—"} />
+                  <InfoRow
+                    label="ประเภท"
+                    value={EXPENSE_TYPE_LABELS[expense.expenseType] ?? expense.expenseType}
+                  />
+                </div>
+
+                {expense.vendorName && (
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">ผู้รับเงิน / ร้านค้า</p>
+                    <p className="text-sm">{expense.vendorName}</p>
+                  </div>
+                )}
+
+                {expense.description && (
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">รายละเอียด</p>
+                    <p className="text-sm">{expense.description}</p>
+                  </div>
+                )}
+
+                {expense.note && (
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">หมายเหตุ</p>
+                    <p className="text-sm">{expense.note}</p>
+                  </div>
+                )}
+
+                <Separator />
+
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-medium text-muted-foreground">จำนวนเงิน</p>
+                  <p className="text-2xl font-bold tabular-nums">
+                    ฿{formatAmount(expense.amount)}
+                    <span className="text-sm font-normal text-muted-foreground ml-1">{expense.currency}</span>
+                  </p>
+                </div>
+
+                {expense.status === "claimed" && expense.claimDate && (
+                  <div className="flex items-center justify-between text-sm">
+                    <p className="text-muted-foreground">วันที่ทำเบิก</p>
+                    <p>{formatDate(expense.claimDate)}</p>
+                  </div>
+                )}
+
+                {expense.status === "reimbursed" && (
+                  <>
+                    {expense.reimbursedDate && (
+                      <div className="flex items-center justify-between text-sm">
+                        <p className="text-muted-foreground">วันที่ได้รับเงิน</p>
+                        <p>{formatDate(expense.reimbursedDate)}</p>
+                      </div>
+                    )}
+                    {expense.reimbursedAmount && (
+                      <div className="flex items-center justify-between text-sm">
+                        <p className="text-muted-foreground">จำนวนที่ได้รับ</p>
+                        <p className="font-semibold tabular-nums">฿{formatAmount(expense.reimbursedAmount)}</p>
+                      </div>
+                    )}
+                  </>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* IOU Info */}
+            {expense.expenseType === "iou_advance" && (
+              <Card className="border-orange-200">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base text-orange-700">ข้อมูลเงินทดรองจ่าย (IOU)</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="grid grid-cols-2 gap-4">
+                    <InfoRow label="เลข IOU" value={expense.iouNumber ?? "—"} />
+                    <InfoRow label="วันที่ IOU" value={formatDate(expense.iouDate)} />
+                    <InfoRow label="จำนวนเงิน IOU" value={expense.iouAmount ? `฿${formatAmount(expense.iouAmount)}` : "—"} />
+                  </div>
+                  {expense.iouNote && (
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-1">หมายเหตุ IOU</p>
+                      <p className="text-sm">{expense.iouNote}</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Attachments */}
+            <Card>
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-base">ไฟล์แนบ</CardTitle>
+                  {canUpload && (
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="gap-1.5 text-xs"
+                        onClick={() => openUploadDialog("expense_proof")}
+                      >
+                        <Plus className="w-3 h-3" />
+                        ใบเสร็จ
+                      </Button>
+                      {expense.expenseType === "iou_advance" && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="gap-1.5 text-xs"
+                          onClick={() => openUploadDialog("iou_document")}
+                        >
+                          <Plus className="w-3 h-3" />
+                          IOU
+                        </Button>
+                      )}
+                      {expense.status === "claimed" && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="gap-1.5 text-xs"
+                          onClick={() => openUploadDialog("reimbursement_proof")}
+                        >
+                          <Plus className="w-3 h-3" />
+                          หลักฐานรับเงิน
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {[
+                  { type: "expense_proof", label: "ใบเสร็จ / หลักฐานการจ่ายเงิน", files: expenseProofs },
+                  { type: "iou_document", label: "เอกสาร IOU", files: iouDocs },
+                  { type: "reimbursement_proof", label: "หลักฐานการรับเงินคืน", files: reimbursementProofs },
+                ].map(({ type, label, files }) => {
+                  if (type === "iou_document" && expense.expenseType !== "iou_advance") return null;
+                  return (
+                    <div key={type}>
+                      <p className="text-xs font-medium text-muted-foreground mb-2">{label}</p>
+                      {files.length === 0 ? (
+                        <p className="text-xs text-muted-foreground/60 italic">ยังไม่มีไฟล์</p>
+                      ) : (
+                        <div className="space-y-2">
+                          {files.map((file: any) => (
+                            <AttachmentItem
+                              key={file.id}
+                              file={file}
+                              canDelete={canEdit && expense.status !== "reimbursed"}
+                              onDelete={() => deleteAttachmentMutation.mutate({ id: file.id })}
+                            />
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* History Timeline */}
+          <div className="space-y-4">
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-muted-foreground" />
+                  ประวัติการเปลี่ยนแปลง
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {!history || history.length === 0 ? (
+                  <p className="text-xs text-muted-foreground text-center py-4">ยังไม่มีประวัติ</p>
+                ) : (
+                  <div className="relative">
+                    <div className="absolute left-3 top-0 bottom-0 w-px bg-border" />
+                    <div className="space-y-4">
+                      {history.map((h: any, idx: number) => (
+                        <div key={h.id} className="flex gap-3 relative">
+                          <div className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 z-10 ${
+                            idx === 0 ? "bg-primary text-primary-foreground" : "bg-muted border border-border"
+                          }`}>
+                            <div className="w-2 h-2 rounded-full bg-current" />
+                          </div>
+                          <div className="flex-1 min-w-0 pb-1">
+                            <p className="text-xs font-medium">
+                              {ACTION_LABELS[h.actionType] ?? h.actionType}
+                            </p>
+                            {h.oldStatus && h.newStatus && (
+                              <p className="text-xs text-muted-foreground">
+                                {h.oldStatus} → {h.newStatus}
+                              </p>
+                            )}
+                            {h.fieldName && (
+                              <p className="text-xs text-muted-foreground truncate">
+                                {h.fieldName}: {h.oldValue} → {h.newValue}
+                              </p>
+                            )}
+                            {h.attachmentFileNameOriginal && (
+                              <p className="text-xs text-muted-foreground truncate">
+                                {h.attachmentFileNameOriginal}
+                              </p>
+                            )}
+                            <p className="text-xs text-muted-foreground/60 mt-0.5">
+                              {h.performerName ?? "—"} · {formatDate(h.performedAt)}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </div>
+
+      {/* Upload Dialog */}
+      <Dialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>อัปโหลด{ATTACHMENT_TYPE_LABELS[uploadType]}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              รองรับไฟล์ PDF, JPG, JPEG, PNG ขนาดไม่เกิน 10 MB
+            </p>
+            <div
+              className="border-2 border-dashed border-border rounded-xl p-8 text-center cursor-pointer hover:border-primary/50 transition-colors"
+              onClick={() => fileInputRef.current?.click()}
+            >
+              {uploading ? (
+                <Loader2 className="w-8 h-8 animate-spin mx-auto text-muted-foreground" />
+              ) : (
+                <>
+                  <Upload className="w-8 h-8 mx-auto text-muted-foreground mb-2" />
+                  <p className="text-sm font-medium">คลิกเพื่อเลือกไฟล์</p>
+                  <p className="text-xs text-muted-foreground mt-1">PDF, JPG, PNG ≤ 10 MB</p>
+                </>
+              )}
+            </div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".pdf,.jpg,.jpeg,.png"
+              className="hidden"
+              onChange={handleFileUpload}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setUploadDialogOpen(false)}>
+              ยกเลิก
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reimbursed Dialog */}
+      <Dialog open={reimbursedDialogOpen} onOpenChange={setReimbursedDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>ยืนยันการรับเงินคืน</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              กรุณาตรวจสอบว่าได้แนบหลักฐานการรับเงินคืนแล้ว
+            </p>
+            <div className="space-y-1.5">
+              <Label>จำนวนเงินที่ได้รับ (ถ้ามี)</Label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">฿</span>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  placeholder={formatAmount(expense.amount)}
+                  className="pl-7"
+                  value={reimbursedAmount}
+                  onChange={(e) => setReimbursedAmount(e.target.value)}
+                />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setReimbursedDialogOpen(false)}>
+              ยกเลิก
+            </Button>
+            <Button
+              className="bg-emerald-600 hover:bg-emerald-500"
+              onClick={() =>
+                markReimbursedMutation.mutate({
+                  id: expenseId,
+                  reimbursedAmount: reimbursedAmount ? parseFloat(reimbursedAmount) : undefined,
+                })
+              }
+              disabled={markReimbursedMutation.isPending}
+            >
+              {markReimbursedMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "ยืนยัน"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Dialog */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <AlertTriangle className="w-5 h-5" />
+              ยืนยันการลบ
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            คุณต้องการลบรายการ <strong>{expense.itemName}</strong> ({expense.expenseNo}) ใช่หรือไม่?
+            การดำเนินการนี้ไม่สามารถยกเลิกได้
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>
+              ยกเลิก
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => deleteExpenseMutation.mutate({ id: expenseId })}
+              disabled={deleteExpenseMutation.isPending}
+            >
+              {deleteExpenseMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "ลบ"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </AppLayout>
+  );
+}
+
+function InfoRow({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon?: React.ElementType;
+  label: string;
+  value: string;
+}) {
+  return (
+    <div>
+      <p className="text-xs text-muted-foreground mb-0.5 flex items-center gap-1">
+        {Icon && <Icon className="w-3 h-3" />}
+        {label}
+      </p>
+      <p className="text-sm font-medium">{value}</p>
+    </div>
+  );
+}
+
+function AttachmentItem({
+  file,
+  canDelete,
+  onDelete,
+}: {
+  file: any;
+  canDelete: boolean;
+  onDelete: () => void;
+}) {
+  const isImage = file.fileType?.startsWith("image/");
+  const utils = trpc.useUtils();
+
+  const handleDownload = async () => {
+    try {
+      const result = await utils.client.attachments.getDownloadUrl.query({ id: file.id });
+      window.open(result.url, "_blank");
+    } catch {
+      toast.error("ไม่สามารถดาวน์โหลดไฟล์ได้");
+    }
+  };
+
+  return (
+    <div className="flex items-center gap-3 p-2.5 rounded-lg bg-muted/50 border">
+      <div className="w-8 h-8 rounded-lg bg-background border flex items-center justify-center flex-shrink-0">
+        {isImage ? (
+          <Image className="w-4 h-4 text-blue-500" />
+        ) : (
+          <FileText className="w-4 h-4 text-red-500" />
+        )}
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-xs font-medium truncate">{file.fileNameOriginal}</p>
+        <p className="text-xs text-muted-foreground">
+          {(file.fileSize / 1024).toFixed(0)} KB
+        </p>
+      </div>
+      <div className="flex items-center gap-1">
+        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleDownload}>
+          <Download className="w-3.5 h-3.5" />
+        </Button>
+        {canDelete && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 text-destructive hover:text-destructive"
+            onClick={onDelete}
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+}
