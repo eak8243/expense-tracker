@@ -102,3 +102,8 @@
 - [x] เพิ่ม UNIQUE constraint บน year column ใน expense_number_seq table
 - [x] แก้ไข generateExpenseNumber ให้ใช้ atomic UPDATE+SELECT เพื่อหลีกเลี่ยง race condition
 - [x] ทดสอบยืนยัน: บันทึกค่าใช้จ่าย EXP-2026-000001 สำเร็จ
+
+## Bug Fix: Sidebar Active State
+- [x] แก้ไข isActive logic ใน AppLayout.tsx: เปลี่ยนจาก startsWith เป็น exact match
+- [x] เมนู "รายการค่าใช้จ่าย" (/expenses) และ "บันทึกค่าใช้จ่าย" (/expenses/new) ไม่ highlight พร้อมกันอีกต่อไป
+- [x] เมนู "ส่งออกข้อมูล" (/export) แสดง active state ถูกต้อง

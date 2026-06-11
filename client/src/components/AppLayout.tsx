@@ -107,7 +107,7 @@ export function AppLayout({ children }: AppLayoutProps) {
                   const currentTab = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("tab") : null;
                   const isActive = itemTab
                     ? location === itemPath && currentTab === itemTab
-                    : (location === item.href || (item.href !== "/" && location.startsWith(item.href)));
+                    : location === item.href;
                   const Icon = item.icon;
                   return (
                     <Link
