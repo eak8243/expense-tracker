@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/contexts/AuthContext";
@@ -7,6 +7,13 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   BarChart,
   Bar,
@@ -29,6 +36,7 @@ import {
   ArrowRight,
   Wallet,
   AlertCircle,
+  Building2,
 } from "lucide-react";
 
 function formatAmount(amount: string | number | null | undefined): string {
@@ -43,19 +51,31 @@ export default function Dashboard() {
   const { user } = useAuth();
   const isAdminOrViewer = user?.role === "admin" || user?.role === "viewer";
 
-  const { data: myData, isLoading: myLoading } = trpc.dashboard.mySummary.useQuery(undefined, {
-    enabled: !isAdminOrViewer,
+  // ─── Company filter state ─────────────────────────────────────────────────
+  const [selectedCompanyId, setSelectedCompanyId] = useState<number | undefined>(undefined);
+
+  // ─── Fetch companies for dropdown ─────────────────────────────────────────
+  const { data: companiesData } = trpc.dashboard.myCompanies.useQuery(undefined, {
+    staleTime: 5 * 60 * 1000,
   });
-  const { data: adminData, isLoading: adminLoading } = trpc.dashboard.adminSummary.useQuery(undefined, {
-    enabled: isAdminOrViewer,
-  });
+
+  // ─── Dashboard data queries ───────────────────────────────────────────────
+  const { data: myData, isLoading: myLoading } = trpc.dashboard.mySummary.useQuery(
+    { companyId: selectedCompanyId },
+    { enabled: !isAdminOrViewer }
+  );
+  const { data: adminData, isLoading: adminLoading } = trpc.dashboard.adminSummary.useQuery(
+    { companyId: selectedCompanyId },
+    { enabled: isAdminOrViewer }
+  );
   const { data: trendData, isLoading: trendLoading } = isAdminOrViewer
-    ? trpc.dashboard.adminMonthlyTrend.useQuery({ months: 12 })
-    : trpc.dashboard.myMonthlyTrend.useQuery({ months: 12 });
+    ? trpc.dashboard.adminMonthlyTrend.useQuery({ months: 12, companyId: selectedCompanyId })
+    : trpc.dashboard.myMonthlyTrend.useQuery({ months: 12, companyId: selectedCompanyId });
 
   const data = isAdminOrViewer ? adminData : myData;
   const isLoading = isAdminOrViewer ? adminLoading : myLoading;
 
+  // ─── Derived chart data ───────────────────────────────────────────────────
   const summaryCards = useMemo(() => {
     if (!data?.summary) return [];
     const s = data.summary as any;
@@ -111,27 +131,62 @@ export default function Dashboard() {
     }));
   }, [data]);
 
+  // ─── Selected company name for display ───────────────────────────────────
+  const selectedCompanyName = useMemo(() => {
+    if (!selectedCompanyId || !companiesData) return null;
+    return companiesData.find((c: any) => c.id === selectedCompanyId)?.companyName ?? null;
+  }, [selectedCompanyId, companiesData]);
+
   return (
     <AppLayout>
       <div className="p-6 max-w-7xl mx-auto space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <h1 className="text-2xl font-bold text-foreground">
               {isAdminOrViewer ? "แดชบอร์ดภาพรวม" : "แดชบอร์ดของฉัน"}
             </h1>
             <p className="text-muted-foreground text-sm mt-0.5">
               สวัสดี คุณ{user?.name || user?.username} — ยินดีต้อนรับกลับมา
+              {selectedCompanyName && (
+                <span className="ml-1 text-primary font-medium">· {selectedCompanyName}</span>
+              )}
             </p>
           </div>
-          {user?.role !== "viewer" && (
-            <Link href="/expenses/new">
-              <Button className="gap-2">
-                <PlusCircle className="w-4 h-4" />
-                บันทึกค่าใช้จ่าย
-              </Button>
-            </Link>
-          )}
+
+          <div className="flex items-center gap-2">
+            {/* Company Filter Dropdown */}
+            {companiesData && companiesData.length > 0 && (
+              <Select
+                value={selectedCompanyId ? String(selectedCompanyId) : "all"}
+                onValueChange={(val) =>
+                  setSelectedCompanyId(val === "all" ? undefined : Number(val))
+                }
+              >
+                <SelectTrigger className="w-44 h-9 text-sm gap-1.5">
+                  <Building2 className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
+                  <SelectValue placeholder="ทุกบริษัท" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">ทุกบริษัท</SelectItem>
+                  {companiesData.map((company: any) => (
+                    <SelectItem key={company.id} value={String(company.id)}>
+                      {company.companyName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+
+            {user?.role !== "viewer" && (
+              <Link href="/expenses/new">
+                <Button className="gap-2 h-9">
+                  <PlusCircle className="w-4 h-4" />
+                  บันทึกค่าใช้จ่าย
+                </Button>
+              </Link>
+            )}
+          </div>
         </div>
 
         {/* Summary Cards */}
@@ -206,6 +261,11 @@ export default function Dashboard() {
                 <CardTitle className="text-base flex items-center gap-2">
                   <TrendingUp className="w-4 h-4 text-primary" />
                   แนวโน้มรายเดือน
+                  {selectedCompanyName && (
+                    <span className="text-xs font-normal text-muted-foreground">
+                      — {selectedCompanyName}
+                    </span>
+                  )}
                 </CardTitle>
               </div>
             </CardHeader>

@@ -126,3 +126,9 @@
 - [x] แก้ไข storage.ts ให้อ่านค่าจาก DB แทน env เมื่อมีการตั้งค่าไว้ใน UI
 - [x] ปุ่ม "ทดสอบการเชื่อมต่อ" แสดงผลสำเร็จ/ล้มเหลว
 - [x] แสดง storage type ปัจจุบัน (Manus Built-in / Custom S3)
+
+## Feature: Dashboard Company Filter (Dropdown)
+- [x] แก้ไข db helpers ให้รับ companyId filter (getUserDashboardSummary, getExpenseByCategory, getMonthlyTrend, getRecentExpenses)
+- [x] แก้ไข dashboard router ให้รับ companyId input
+- [x] เพิ่ม dropdown เลือกบริษัทใน Dashboard.tsx (ดึงรายการจาก companies ที่ user มีข้อมูล)
+- [x] กราฟและ summary cards กรองตาม companyId ที่เลือก

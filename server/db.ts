@@ -458,9 +458,12 @@ export async function createAuditLog(data: InsertAuditLog) {
 
 // ─── Dashboard Helpers ────────────────────────────────────────────────────────
 
-export async function getUserDashboardSummary(userId: number) {
+export async function getUserDashboardSummary(userId: number, companyId?: number) {
   const db = await getDb();
   if (!db) return null;
+
+  const conditions = [eq(expenses.userId, userId)];
+  if (companyId) conditions.push(eq(expenses.companyId, companyId));
 
   const [summary] = await db
     .select({
@@ -476,14 +479,17 @@ export async function getUserDashboardSummary(userId: number) {
       iouReimbursedAmount: sql<string>`COALESCE(SUM(CASE WHEN ${expenses.expenseType} = 'iou_advance' AND ${expenses.status} = 'reimbursed' THEN ${expenses.amount} ELSE 0 END), 0)`,
     })
     .from(expenses)
-    .where(eq(expenses.userId, userId));
+    .where(and(...conditions));
 
   return summary;
 }
 
-export async function getAdminDashboardSummary() {
+export async function getAdminDashboardSummary(companyId?: number) {
   const db = await getDb();
   if (!db) return null;
+
+  const conditions = companyId ? [eq(expenses.companyId, companyId)] : [];
+  const where = conditions.length > 0 ? and(...conditions) : undefined;
 
   const [summary] = await db
     .select({
@@ -494,20 +500,29 @@ export async function getAdminDashboardSummary() {
       totalCount: sql<number>`COUNT(*)`,
       iouTotalAmount: sql<string>`COALESCE(SUM(CASE WHEN ${expenses.expenseType} = 'iou_advance' THEN ${expenses.amount} ELSE 0 END), 0)`,
     })
-    .from(expenses);
+    .from(expenses)
+    .where(where);
 
   return summary;
 }
 
-export async function getMonthlyTrend(userId?: number, months = 12) {
+export async function getMonthlyTrend(userId?: number, months = 12, companyId?: number) {
   const db = await getDb();
   if (!db) return [];
 
-  // Use raw SQL to avoid ONLY_FULL_GROUP_BY issues with Drizzle's sql template
-  const conn = (db as any).session?.client ?? (db as any)._client;
-  if (userId) {
+  if (userId && companyId) {
+    const [rows] = await (db as any).execute(
+      sql`SELECT DATE_FORMAT(expenseDate, '%Y-%m') AS month, SUM(amount) AS totalAmount, COUNT(*) AS count FROM expenses WHERE userId = ${userId} AND companyId = ${companyId} GROUP BY month ORDER BY month LIMIT ${months}`
+    );
+    return rows as { month: string; totalAmount: string; count: number }[];
+  } else if (userId) {
     const [rows] = await (db as any).execute(
       sql`SELECT DATE_FORMAT(expenseDate, '%Y-%m') AS month, SUM(amount) AS totalAmount, COUNT(*) AS count FROM expenses WHERE userId = ${userId} GROUP BY month ORDER BY month LIMIT ${months}`
+    );
+    return rows as { month: string; totalAmount: string; count: number }[];
+  } else if (companyId) {
+    const [rows] = await (db as any).execute(
+      sql`SELECT DATE_FORMAT(expenseDate, '%Y-%m') AS month, SUM(amount) AS totalAmount, COUNT(*) AS count FROM expenses WHERE companyId = ${companyId} GROUP BY month ORDER BY month LIMIT ${months}`
     );
     return rows as { month: string; totalAmount: string; count: number }[];
   } else {
@@ -518,10 +533,12 @@ export async function getMonthlyTrend(userId?: number, months = 12) {
   }
 }
 
-export async function getExpenseByCompany(userId?: number) {
+export async function getExpenseByCompany(userId?: number, companyId?: number) {
   const db = await getDb();
   if (!db) return [];
-  const conditions = userId ? [eq(expenses.userId, userId)] : [];
+  const conditions: ReturnType<typeof eq>[] = [];
+  if (userId) conditions.push(eq(expenses.userId, userId));
+  if (companyId) conditions.push(eq(expenses.companyId, companyId));
   const where = conditions.length > 0 ? and(...conditions) : undefined;
   return db
     .select({
@@ -537,10 +554,12 @@ export async function getExpenseByCompany(userId?: number) {
     .orderBy(desc(sql`SUM(${expenses.amount})`));
 }
 
-export async function getExpenseByCategory(userId?: number) {
+export async function getExpenseByCategory(userId?: number, companyId?: number) {
   const db = await getDb();
   if (!db) return [];
-  const conditions = userId ? [eq(expenses.userId, userId)] : [];
+  const conditions: ReturnType<typeof eq>[] = [];
+  if (userId) conditions.push(eq(expenses.userId, userId));
+  if (companyId) conditions.push(eq(expenses.companyId, companyId));
   const where = conditions.length > 0 ? and(...conditions) : undefined;
   return db
     .select({
@@ -556,10 +575,12 @@ export async function getExpenseByCategory(userId?: number) {
     .orderBy(desc(sql`SUM(${expenses.amount})`));
 }
 
-export async function getExpenseByType(userId?: number) {
+export async function getExpenseByType(userId?: number, companyId?: number) {
   const db = await getDb();
   if (!db) return [];
-  const conditions = userId ? [eq(expenses.userId, userId)] : [];
+  const conditions: ReturnType<typeof eq>[] = [];
+  if (userId) conditions.push(eq(expenses.userId, userId));
+  if (companyId) conditions.push(eq(expenses.companyId, companyId));
   const where = conditions.length > 0 ? and(...conditions) : undefined;
   return db
     .select({
@@ -670,10 +691,12 @@ export async function getExpensesForExport(filters: ExpenseFilters) {
 
 // ─── Recent Expenses ──────────────────────────────────────────────────────────
 
-export async function getRecentExpenses(userId?: number, limit = 10) {
+export async function getRecentExpenses(userId?: number, limit = 10, companyId?: number) {
   const db = await getDb();
   if (!db) return [];
-  const conditions = userId ? [eq(expenses.userId, userId)] : [];
+  const conditions: ReturnType<typeof eq>[] = [];
+  if (userId) conditions.push(eq(expenses.userId, userId));
+  if (companyId) conditions.push(eq(expenses.companyId, companyId));
   const where = conditions.length > 0 ? and(...conditions) : undefined;
   return db
     .select({
