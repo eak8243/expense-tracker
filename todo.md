@@ -96,3 +96,9 @@
 - [x] แก้ไข Frontend: เพิ่มปุ่ม "เข้าสู่ระบบด้วย Manus" ในหน้า Login พร้อม divider
 - [x] แก้ไข main.tsx ให้ redirect ไป /login แทน Manus portal เมื่อ session หมดอายุ
 - [x] ทดสอบ Manus OAuth flow ครบถ้วน - ปุ่มแสดงถูกต้อง
+
+## Bug Fix: Expense Insert Failure
+- [x] แก้ไข expense_number_seq ไม่มี UNIQUE constraint บน year ทำให้ expenseNo ซ้ำกัน → insert fail
+- [x] เพิ่ม UNIQUE constraint บน year column ใน expense_number_seq table
+- [x] แก้ไข generateExpenseNumber ให้ใช้ atomic UPDATE+SELECT เพื่อหลีกเลี่ยง race condition
+- [x] ทดสอบยืนยัน: บันทึกค่าใช้จ่าย EXP-2026-000001 สำเร็จ

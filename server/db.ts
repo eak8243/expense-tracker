@@ -107,19 +107,22 @@ export async function generateExpenseNumber(): Promise<string> {
   if (!db) throw new Error("DB not available");
   const year = new Date().getFullYear();
 
-  // Upsert sequence row for this year
+  // Ensure row exists for this year (idempotent)
   await db
     .insert(expenseNumberSeq)
-    .values({ year, lastSeq: 1 })
-    .onDuplicateKeyUpdate({ set: { lastSeq: sql`${expenseNumberSeq.lastSeq} + 1` } });
+    .values({ year, lastSeq: 0 })
+    .onDuplicateKeyUpdate({ set: { year } }); // no-op if exists
 
-  const row = await db
-    .select()
-    .from(expenseNumberSeq)
-    .where(eq(expenseNumberSeq.year, year))
-    .limit(1);
+  // Atomic increment using UPDATE + LAST_INSERT_ID trick
+  await db.execute(
+    sql`UPDATE ${expenseNumberSeq} SET lastSeq = LAST_INSERT_ID(lastSeq + 1) WHERE year = ${year}`
+  );
 
-  const seq = row[0]?.lastSeq ?? 1;
+  const seqResult = await db.execute(sql`SELECT LAST_INSERT_ID() as seq`);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const rows = (seqResult[0] as unknown) as Array<{ seq: number }>;
+  const seq = Number(rows[0]?.seq ?? 1);
+
   return `EXP-${year}-${String(seq).padStart(6, "0")}`;
 }
 
