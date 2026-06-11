@@ -233,10 +233,10 @@ export default function ExpenseDetail() {
 
   return (
     <AppLayout>
-      <div className="p-6 max-w-4xl mx-auto space-y-6">
+      <div className="p-4 sm:p-6 max-w-4xl mx-auto space-y-4 sm:space-y-6">
         {/* Header */}
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
             <Button variant="ghost" size="icon" onClick={() => navigate("/expenses")}>
               <ArrowLeft className="w-4 h-4" />
             </Button>
@@ -337,7 +337,7 @@ export default function ExpenseDetail() {
                 <CardTitle className="text-base">รายละเอียดค่าใช้จ่าย</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <InfoRow icon={Building2} label="บริษัท" value={(expense as any).companyName ?? "—"} />
                   <InfoRow icon={Calendar} label="วันที่" value={formatDate(expense.expenseDate)} />
                   <InfoRow icon={Tag} label="หมวดหมู่" value={(expense as any).categoryName ?? "—"} />
@@ -413,7 +413,7 @@ export default function ExpenseDetail() {
                   <CardTitle className="text-base text-orange-700">ข้อมูลเงินทดรองจ่าย (IOU)</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <InfoRow label="เลข IOU" value={expense.iouNumber ?? "—"} />
                     <InfoRow label="วันที่ IOU" value={formatDate(expense.iouDate)} />
                     <InfoRow label="จำนวนเงิน IOU" value={expense.iouAmount ? `฿${formatAmount(expense.iouAmount)}` : "—"} />

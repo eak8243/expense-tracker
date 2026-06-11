@@ -43,7 +43,7 @@ export default function AdminMasterData() {
 
   return (
     <AppLayout>
-      <div className="p-6 max-w-5xl mx-auto space-y-5">
+      <div className="p-4 sm:p-6 max-w-5xl mx-auto space-y-4 sm:space-y-5">
         <div>
           <h1 className="text-2xl font-bold">Master Data</h1>
           <p className="text-muted-foreground text-sm mt-0.5">จัดการข้อมูลพื้นฐานของระบบ</p>

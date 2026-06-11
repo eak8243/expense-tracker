@@ -122,7 +122,7 @@ export default function AdminStorageSettings() {
 
   return (
     <AppLayout>
-      <div className="p-6 max-w-3xl mx-auto space-y-6">
+      <div className="p-4 sm:p-6 max-w-3xl mx-auto space-y-4 sm:space-y-6">
         {/* Header */}
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
@@ -141,7 +141,7 @@ export default function AdminStorageSettings() {
         ) : (
           <>
             {/* Storage Type Selector */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {/* Manus Built-in */}
               <button
                 type="button"
@@ -250,7 +250,7 @@ export default function AdminStorageSettings() {
                     </div>
 
                     {/* Region & Bucket */}
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="space-y-1.5">
                         <Label>Region <span className="text-destructive">*</span></Label>
                         <Input

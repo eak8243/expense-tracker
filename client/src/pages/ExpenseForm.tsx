@@ -365,7 +365,7 @@ export default function ExpenseForm() {
               </div>
 
               {/* Company */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <Label>บริษัท <span className="text-destructive">*</span></Label>
                   <Select
@@ -407,7 +407,7 @@ export default function ExpenseForm() {
               </div>
 
               {/* Category & Payment Method */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <Label>หมวดหมู่</Label>
                   <Select
@@ -446,7 +446,7 @@ export default function ExpenseForm() {
               </div>
 
               {/* Amount */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <Label>จำนวนเงิน <span className="text-destructive">*</span></Label>
                   <div className="relative">
@@ -510,7 +510,7 @@ export default function ExpenseForm() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-1.5">
                     <Label>เลข IOU <span className="text-destructive">*</span></Label>
                     <Input

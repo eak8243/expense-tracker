@@ -139,11 +139,11 @@ export default function Dashboard() {
 
   return (
     <AppLayout>
-      <div className="p-6 max-w-7xl mx-auto space-y-6">
+      <div className="p-4 sm:p-6 max-w-7xl mx-auto space-y-4 sm:space-y-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-bold text-foreground">
+            <h1 className="text-xl sm:text-2xl font-bold text-foreground">
               {isAdminOrViewer ? "แดชบอร์ดภาพรวม" : "แดชบอร์ดของฉัน"}
             </h1>
             <p className="text-muted-foreground text-sm mt-0.5">
@@ -163,7 +163,7 @@ export default function Dashboard() {
                   setSelectedCompanyId(val === "all" ? undefined : Number(val))
                 }
               >
-                <SelectTrigger className="w-44 h-9 text-sm gap-1.5">
+                <SelectTrigger className="w-36 sm:w-44 h-9 text-sm gap-1.5">
                   <Building2 className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
                   <SelectValue placeholder="ทุกบริษัท" />
                 </SelectTrigger>
@@ -180,7 +180,7 @@ export default function Dashboard() {
 
             {user?.role !== "viewer" && (
               <Link href="/expenses/new">
-                <Button className="gap-2 h-9">
+                <Button className="gap-2 h-9 hidden sm:flex">
                   <PlusCircle className="w-4 h-4" />
                   บันทึกค่าใช้จ่าย
                 </Button>
@@ -234,7 +234,7 @@ export default function Dashboard() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
                 <div className="text-center p-3 rounded-lg bg-muted/50">
                   <p className="text-xs text-muted-foreground mb-1">ยอดรวม IOU</p>
                   <p className="text-lg font-bold tabular-nums">฿{formatAmount(data.summary.iouTotalAmount)}</p>
@@ -277,7 +277,8 @@ export default function Dashboard() {
                   ยังไม่มีข้อมูล
                 </div>
               ) : (
-                <ResponsiveContainer width="100%" height={200}>
+                <div className="overflow-x-auto">
+                <ResponsiveContainer width="100%" minWidth={280} height={200}>
                   <BarChart data={trendChartData} margin={{ top: 5, right: 5, bottom: 5, left: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
                     <XAxis dataKey="month" tick={{ fontSize: 11 }} />
@@ -289,6 +290,7 @@ export default function Dashboard() {
                     <Bar dataKey="amount" fill="var(--color-accent)" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
+                </div>
               )}
             </CardContent>
           </Card>
@@ -356,10 +358,10 @@ export default function Dashboard() {
               <div className="divide-y divide-border">
                 {data.recent.map((expense) => (
                   <Link key={expense.id} href={`/expenses/${expense.id}`}>
-                    <div className="flex items-center gap-4 px-6 py-3.5 hover:bg-muted/50 cursor-pointer transition-colors">
+                    <div className="flex items-center gap-3 px-4 sm:px-6 py-3.5 hover:bg-muted/50 cursor-pointer transition-colors">
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium truncate">{expense.itemName}</p>
-                        <p className="text-xs text-muted-foreground">
+                        <p className="text-xs text-muted-foreground truncate">
                           {expense.expenseNo} · {expense.companyName}
                           {isAdminOrViewer && expense.userName && ` · ${expense.userName}`}
                         </p>

@@ -132,3 +132,13 @@
 - [x] แก้ไข dashboard router ให้รับ companyId input
 - [x] เพิ่ม dropdown เลือกบริษัทใน Dashboard.tsx (ดึงรายการจาก companies ที่ user มีข้อมูล)
 - [x] กราฟและ summary cards กรองตาม companyId ที่เลือก
+
+## Feature: Responsive Design (Mobile-Friendly)
+- [x] AppLayout: เพิ่ม hamburger menu บน mobile, sidebar เป็น drawer overlay
+- [x] AppLayout: เพิ่ม bottom navigation bar บน mobile สำหรับ main menu items
+- [x] Dashboard: ปรับ summary cards เป็น 2 คอลัมน์บน mobile, กราฟ scroll horizontal
+- [x] ExpenseList: ปรับ table เป็น card list บน mobile
+- [x] ExpenseForm: ปรับ form layout เป็น single column บน mobile, file upload area เล็กลง
+- [x] ExpenseDetail: ปรับ layout เป็น single column บน mobile
+- [x] Export page: ปรับ filter form บน mobile
+- [x] Admin pages: ปรับ table/form บน mobile

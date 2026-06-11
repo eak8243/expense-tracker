@@ -147,29 +147,32 @@ export default function ExpenseList() {
 
   return (
     <AppLayout>
-      <div className="p-6 max-w-7xl mx-auto space-y-5">
+      <div className="p-4 sm:p-6 max-w-7xl mx-auto space-y-4 sm:space-y-5">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex items-start sm:items-center justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-bold">รายการค่าใช้จ่าย</h1>
+            <h1 className="text-xl sm:text-2xl font-bold">รายการค่าใช้จ่าย</h1>
             <p className="text-muted-foreground text-sm mt-0.5">
               {total > 0 ? `พบ ${total} รายการ` : "ยังไม่มีรายการ"}
             </p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-shrink-0">
             {user?.role !== "viewer" && (
               <Link href="/expenses/new">
-                <Button className="gap-2">
+                <Button className="gap-2 hidden sm:flex">
                   <PlusCircle className="w-4 h-4" />
                   บันทึกใหม่
                 </Button>
               </Link>
             )}
-            <Button variant="outline" className="gap-2" onClick={handleExport} disabled={exportCsv.isPending}>
+            <Button variant="outline" size="icon" className="sm:hidden" onClick={handleExport} disabled={exportCsv.isPending}>
+              <Download className="w-4 h-4" />
+            </Button>
+            <Button variant="outline" className="gap-2 hidden sm:flex" onClick={handleExport} disabled={exportCsv.isPending}>
               <Download className="w-4 h-4" />
               CSV
             </Button>
-            <Button variant="outline" className="gap-2" onClick={handleExportExcel} disabled={exportExcel.isPending}>
+            <Button variant="outline" className="gap-2 hidden sm:flex" onClick={handleExportExcel} disabled={exportExcel.isPending}>
               <Download className="w-4 h-4" />
               Excel
             </Button>
@@ -205,7 +208,7 @@ export default function ExpenseList() {
           </div>
 
           {showFilters && (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 p-4 bg-muted/30 rounded-xl border">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 p-4 bg-muted/30 rounded-xl border">
               <div>
                 <label className="text-xs font-medium text-muted-foreground mb-1 block">สถานะ</label>
                 <Select value={status} onValueChange={(v) => { setStatus(v); setPage(1); }}>
@@ -349,18 +352,18 @@ export default function ExpenseList() {
                       <p className="font-medium text-sm truncate">{expense.itemName}</p>
                       <StatusBadge status={expense.status} showIcon={false} />
                     </div>
-                    <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
                       <span className="font-mono">{expense.expenseNo}</span>
                       <span className="flex items-center gap-1">
                         <Building2 className="w-3 h-3" />
                         {(expense as any).companyName ?? "—"}
                       </span>
-                      <span className="flex items-center gap-1">
+                      <span className="hidden sm:flex items-center gap-1">
                         <Calendar className="w-3 h-3" />
                         {formatDate(expense.expenseDate)}
                       </span>
                       {isAdminOrViewer && (expense as any).userName && (
-                        <span className="text-primary/70">{(expense as any).userName}</span>
+                        <span className="text-primary/70 hidden sm:inline">{(expense as any).userName}</span>
                       )}
                     </div>
                     {expense.expenseType === "iou_advance" && expense.iouNumber && (
