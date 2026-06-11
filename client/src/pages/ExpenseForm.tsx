@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -11,8 +11,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
-import { Loader2, ArrowLeft, Save, Receipt, Banknote } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
+import {
+  Loader2, ArrowLeft, Save, Receipt, Banknote,
+  Paperclip, X, FileText, ImageIcon, Upload, CheckCircle2, Eye,
+} from "lucide-react";
 import { toast } from "sonner";
 
 const formSchema = z.object({
@@ -35,6 +38,31 @@ const formSchema = z.object({
 
 type FormData = z.infer<typeof formSchema>;
 
+interface PendingFile {
+  id: string;
+  file: File;
+  name: string;
+  size: number;
+  type: string;
+  status: "pending" | "uploading" | "done" | "error";
+  progress: number;
+  errorMsg?: string;
+}
+
+const ALLOWED_TYPES = ["application/pdf", "image/jpeg", "image/jpg", "image/png"];
+const MAX_SIZE = 10 * 1024 * 1024; // 10MB
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function FileIcon({ type }: { type: string }) {
+  if (type === "application/pdf") return <FileText className="w-5 h-5 text-red-500" />;
+  return <ImageIcon className="w-5 h-5 text-blue-500" />;
+}
+
 export default function ExpenseForm() {
   const params = useParams<{ id?: string }>();
   const [, navigate] = useLocation();
@@ -48,6 +76,20 @@ export default function ExpenseForm() {
   );
 
   const utils = trpc.useUtils();
+
+  // ─── File state ─────────────────────────────────────────────────────────────
+  const [pendingFiles, setPendingFiles] = useState<PendingFile[]>([]);
+  const [isDragging, setIsDragging] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const uploadMutation = trpc.attachments.upload.useMutation();
+  const deleteAttachmentMutation = trpc.attachments.delete.useMutation({
+    onSuccess: () => {
+      utils.expenses.getById.invalidate({ id: expenseId! });
+      toast.success("ลบไฟล์เรียบร้อยแล้ว");
+    },
+    onError: (err) => toast.error(err.message || "ลบไฟล์ไม่สำเร็จ"),
+  });
 
   const {
     register,
@@ -95,12 +137,116 @@ export default function ExpenseForm() {
     }
   }, [existingExpense, reset]);
 
+  // ─── File handlers ───────────────────────────────────────────────────────────
+  const addFiles = useCallback((files: FileList | File[]) => {
+    const arr = Array.from(files);
+    const newPending: PendingFile[] = [];
+    for (const file of arr) {
+      if (!ALLOWED_TYPES.includes(file.type)) {
+        toast.error(`${file.name}: ประเภทไฟล์ไม่ถูกต้อง (รองรับ PDF, JPG, PNG)`);
+        continue;
+      }
+      if (file.size > MAX_SIZE) {
+        toast.error(`${file.name}: ขนาดไฟล์เกิน 10 MB`);
+        continue;
+      }
+      newPending.push({
+        id: `${Date.now()}-${Math.random()}`,
+        file,
+        name: file.name,
+        size: file.size,
+        type: file.type,
+        status: "pending",
+        progress: 0,
+      });
+    }
+    if (newPending.length > 0) {
+      setPendingFiles((prev) => [...prev, ...newPending]);
+    }
+  }, []);
+
+  const removeFile = (id: string) => {
+    setPendingFiles((prev) => prev.filter((f) => f.id !== id));
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+  const handleDragLeave = () => setIsDragging(false);
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    addFiles(e.dataTransfer.files);
+  };
+
+  // ─── Upload all pending files for a given expenseId ──────────────────────────
+  const uploadPendingFiles = async (targetExpenseId: number): Promise<void> => {
+    if (pendingFiles.length === 0) return;
+
+    for (const pf of pendingFiles) {
+      setPendingFiles((prev) =>
+        prev.map((f) => (f.id === pf.id ? { ...f, status: "uploading", progress: 30 } : f))
+      );
+      try {
+        const fileData = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => {
+            const result = reader.result as string;
+            // strip data URL prefix
+            resolve(result.split(",")[1]);
+          };
+          reader.onerror = reject;
+          reader.readAsDataURL(pf.file);
+        });
+
+        setPendingFiles((prev) =>
+          prev.map((f) => (f.id === pf.id ? { ...f, progress: 60 } : f))
+        );
+
+        await uploadMutation.mutateAsync({
+          expenseId: targetExpenseId,
+          attachmentType: "expense_proof",
+          fileName: pf.name,
+          fileType: pf.type,
+          fileSize: pf.size,
+          fileData,
+        });
+
+        setPendingFiles((prev) =>
+          prev.map((f) => (f.id === pf.id ? { ...f, status: "done", progress: 100 } : f))
+        );
+      } catch (err: any) {
+        setPendingFiles((prev) =>
+          prev.map((f) =>
+            f.id === pf.id
+              ? { ...f, status: "error", progress: 0, errorMsg: err?.message || "อัปโหลดล้มเหลว" }
+              : f
+          )
+        );
+      }
+    }
+  };
+
+  // ─── Create mutation ─────────────────────────────────────────────────────────
   const createMutation = trpc.expenses.create.useMutation({
-    onSuccess: (data) => {
-      toast.success(`บันทึกค่าใช้จ่าย ${data.expenseNo} เรียบร้อยแล้ว`);
+    onSuccess: async (data) => {
+      // Upload files after expense is created
+      if (pendingFiles.length > 0) {
+        toast.info("กำลังอัปโหลดไฟล์หลักฐาน...");
+        await uploadPendingFiles(data.id);
+        const failedCount = pendingFiles.filter((f) => f.status === "error").length;
+        if (failedCount > 0) {
+          toast.warning(`บันทึกสำเร็จ แต่อัปโหลดไฟล์ล้มเหลว ${failedCount} ไฟล์`);
+        } else {
+          toast.success(`บันทึกค่าใช้จ่าย ${data.expenseNo} และอัปโหลดไฟล์เรียบร้อยแล้ว`);
+        }
+      } else {
+        toast.success(`บันทึกค่าใช้จ่าย ${data.expenseNo} เรียบร้อยแล้ว`);
+      }
       utils.expenses.list.invalidate();
       utils.dashboard.mySummary.invalidate();
-      navigate("/expenses");
+      navigate(`/expenses/${data.id}`);
     },
     onError: (err) => {
       toast.error(err.message || "เกิดข้อผิดพลาดในการบันทึก");
@@ -108,8 +254,20 @@ export default function ExpenseForm() {
   });
 
   const updateMutation = trpc.expenses.update.useMutation({
-    onSuccess: () => {
-      toast.success("อัปเดตค่าใช้จ่ายเรียบร้อยแล้ว");
+    onSuccess: async () => {
+      // Upload any new files added during edit
+      if (pendingFiles.length > 0) {
+        toast.info("กำลังอัปโหลดไฟล์หลักฐาน...");
+        await uploadPendingFiles(expenseId!);
+        const failedCount = pendingFiles.filter((f) => f.status === "error").length;
+        if (failedCount > 0) {
+          toast.warning(`อัปเดตสำเร็จ แต่อัปโหลดไฟล์ล้มเหลว ${failedCount} ไฟล์`);
+        } else {
+          toast.success("อัปเดตค่าใช้จ่ายและอัปโหลดไฟล์เรียบร้อยแล้ว");
+        }
+      } else {
+        toast.success("อัปเดตค่าใช้จ่ายเรียบร้อยแล้ว");
+      }
       utils.expenses.list.invalidate();
       utils.expenses.getById.invalidate({ id: expenseId! });
       navigate(`/expenses/${expenseId}`);
@@ -146,7 +304,9 @@ export default function ExpenseForm() {
     }
   };
 
-  const isMutating = createMutation.isPending || updateMutation.isPending;
+  const isMutating = createMutation.isPending || updateMutation.isPending || isSubmitting;
+  const hasUploadingFiles = pendingFiles.some((f) => f.status === "uploading");
+  const isProcessing = isMutating || hasUploadingFiles;
 
   return (
     <AppLayout>
@@ -391,6 +551,131 @@ export default function ExpenseForm() {
             </Card>
           )}
 
+          {/* ─── File Upload Section ─────────────────────────────────────────────── */}
+          <Card>
+            <CardHeader className="pb-4">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Paperclip className="w-4 h-4 text-primary" />
+                ไฟล์หลักฐาน / ใบเสร็จ
+                <span className="text-xs font-normal text-muted-foreground ml-1">(ไม่บังคับ)</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {/* Drop Zone */}
+              <div
+                className={`relative border-2 border-dashed rounded-xl p-6 text-center transition-all cursor-pointer ${
+                  isDragging
+                    ? "border-primary bg-primary/5"
+                    : "border-border hover:border-primary/40 hover:bg-muted/30"
+                }`}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  multiple
+                  accept=".pdf,.jpg,.jpeg,.png"
+                  className="hidden"
+                  onChange={(e) => e.target.files && addFiles(e.target.files)}
+                />
+                <Upload className="w-8 h-8 mx-auto mb-2 text-muted-foreground" />
+                <p className="text-sm font-medium text-foreground">
+                  คลิกเพื่อเลือกไฟล์ หรือลากไฟล์มาวางที่นี่
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  รองรับ PDF, JPG, PNG — สูงสุด 10 MB ต่อไฟล์
+                </p>
+              </div>
+
+              {/* File List */}
+              {pendingFiles.length > 0 && (
+                <div className="space-y-2">
+                  {pendingFiles.map((pf) => (
+                    <div
+                      key={pf.id}
+                      className={`flex items-center gap-3 p-3 rounded-lg border transition-colors ${
+                        pf.status === "done"
+                          ? "border-green-200 bg-green-50/50"
+                          : pf.status === "error"
+                          ? "border-destructive/30 bg-destructive/5"
+                          : "border-border bg-muted/20"
+                      }`}
+                    >
+                      <FileIcon type={pf.type} />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{pf.name}</p>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <p className="text-xs text-muted-foreground">{formatFileSize(pf.size)}</p>
+                          {pf.status === "uploading" && (
+                            <span className="text-xs text-primary">กำลังอัปโหลด...</span>
+                          )}
+                          {pf.status === "done" && (
+                            <span className="text-xs text-green-600 flex items-center gap-1">
+                              <CheckCircle2 className="w-3 h-3" /> อัปโหลดสำเร็จ
+                            </span>
+                          )}
+                          {pf.status === "error" && (
+                            <span className="text-xs text-destructive">{pf.errorMsg}</span>
+                          )}
+                        </div>
+                        {pf.status === "uploading" && (
+                          <Progress value={pf.progress} className="h-1 mt-1.5" />
+                        )}
+                      </div>
+                      {pf.status !== "uploading" && pf.status !== "done" && (
+                        <button
+                          type="button"
+                          onClick={() => removeFile(pf.id)}
+                          className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Existing attachments (edit mode) */}
+              {isEdit && existingExpense?.attachments && existingExpense.attachments.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">ไฟล์แนบที่มีอยู่แล้ว</p>
+                  {existingExpense.attachments.map((att: any) => (
+                    <div key={att.id} className="flex items-center gap-3 p-3 rounded-lg border border-border bg-muted/10">
+                      <FileIcon type={att.fileType} />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{att.fileNameOriginal}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {formatFileSize(att.fileSize)} · {att.attachmentType === "expense_proof" ? "หลักฐานค่าใช้จ่าย" : att.attachmentType === "reimbursement_proof" ? "หลักฐานรับเงินคืน" : "เอกสาร IOU"}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (confirm(`ลบไฟล์ "${att.fileNameOriginal}" ใช่หรือไม่?`)) {
+                            deleteAttachmentMutation.mutate({ id: att.id });
+                          }
+                        }}
+                        disabled={deleteAttachmentMutation.isPending}
+                        className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors flex-shrink-0"
+                        title="ลบไฟล์"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <p className="text-xs text-muted-foreground">
+                ไฟล์จะถูกบันทึกเป็นหลักฐานค่าใช้จ่าย (expense_proof) — สามารถเพิ่มหลักฐานการรับเงินคืนได้ในหน้ารายละเอียดภายหลัง
+              </p>
+            </CardContent>
+          </Card>
+
           {/* Note */}
           <Card>
             <CardContent className="pt-4">
@@ -411,19 +696,25 @@ export default function ExpenseForm() {
               type="button"
               variant="outline"
               onClick={() => navigate(isEdit ? `/expenses/${expenseId}` : "/expenses")}
+              disabled={isProcessing}
             >
               ยกเลิก
             </Button>
-            <Button type="submit" disabled={isMutating} className="gap-2 min-w-32">
-              {isMutating ? (
+            <Button type="submit" disabled={isProcessing} className="gap-2 min-w-36">
+              {isProcessing ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  กำลังบันทึก...
+                  {hasUploadingFiles ? "กำลังอัปโหลดไฟล์..." : "กำลังบันทึก..."}
                 </>
               ) : (
                 <>
                   <Save className="w-4 h-4" />
                   {isEdit ? "บันทึกการแก้ไข" : "บันทึกค่าใช้จ่าย"}
+                  {pendingFiles.length > 0 && (
+                    <span className="ml-1 text-xs opacity-80">
+                      + {pendingFiles.length} ไฟล์
+                    </span>
+                  )}
                 </>
               )}
             </Button>

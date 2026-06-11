@@ -107,3 +107,12 @@
 - [x] แก้ไข isActive logic ใน AppLayout.tsx: เปลี่ยนจาก startsWith เป็น exact match
 - [x] เมนู "รายการค่าใช้จ่าย" (/expenses) และ "บันทึกค่าใช้จ่าย" (/expenses/new) ไม่ highlight พร้อมกันอีกต่อไป
 - [x] เมนู "ส่งออกข้อมูล" (/export) แสดง active state ถูกต้อง
+
+## Feature: อัปโหลดไฟล์หลักฐานในหน้าบันทึกค่าใช้จ่าย
+- [x] แก้ไข ExpenseForm.tsx ให้มี section อัปโหลดไฟล์หลักฐาน (expense_proof)
+- [x] รองรับการเลือกไฟล์ PDF/JPG/PNG สูงสุด 10MB
+- [x] แสดง preview ไฟล์ที่เลือก (ชื่อไฟล์ ขนาด ไอคอน)
+- [x] หลังบันทึก expense สำเร็จ ให้ upload ไฟล์ที่เลือกไว้ไปยัง expenseId ที่ได้รับ
+- [x] แสดง progress/loading ระหว่างอัปโหลด
+- [x] รองรับการลบไฟล์ที่เลือกก่อน submit
+- [x] สำหรับหน้า Edit: แสดงไฟล์ที่มีอยู่แล้ว + เพิ่มไฟล์ใหม่ได้

@@ -148,7 +148,7 @@ export const expensesRouter = router({
         });
       }
 
-      return { success: true, expenseNo };
+      return { success: true, expenseNo, id: newExpense?.id ?? expenseId };
     }),
 
   // ─── Update ────────────────────────────────────────────────────────────────
