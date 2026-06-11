@@ -89,3 +89,10 @@
 ## Bug Reports
 - [x] หน้า Admin: หมวดหมู่ (Categories) - แก้ไข sidebar link ให้ชี้ไป /admin/master-data?tab=categories
 - [x] หน้า Admin: จัดการบริษัท (Companies) - แก้ไข sidebar link ให้ชี้ไป /admin/master-data?tab=companies
+
+## Feature: Manus OAuth Login
+- [x] ศึกษา OAuth flow ที่มีอยู่ใน template (_core/oauth.ts, _core/sdk.ts)
+- [x] Backend รองรับ Manus OAuth callback อยู่แล้ว (ไม่ต้องแก้ไข)
+- [x] แก้ไข Frontend: เพิ่มปุ่ม "เข้าสู่ระบบด้วย Manus" ในหน้า Login พร้อม divider
+- [x] แก้ไข main.tsx ให้ redirect ไป /login แทน Manus portal เมื่อ session หมดอายุ
+- [x] ทดสอบ Manus OAuth flow ครบถ้วน - ปุ่มแสดงถูกต้อง

@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Loader2, Receipt, AlertCircle } from "lucide-react";
+import { getLoginUrl } from "@/const";
 
 const loginSchema = z.object({
   username: z.string().min(1, "กรุณาระบุชื่อผู้ใช้"),
@@ -31,7 +32,6 @@ export default function Login() {
 
   const loginMutation = trpc.auth.login.useMutation({
     onSuccess: async () => {
-      // Invalidate auth.me cache so it refetches with the new session cookie
       await utils.auth.me.invalidate();
       navigate("/");
     },
@@ -43,6 +43,10 @@ export default function Login() {
   const onSubmit = (data: LoginForm) => {
     setError(null);
     loginMutation.mutate(data);
+  };
+
+  const handleManusLogin = () => {
+    window.location.href = getLoginUrl();
   };
 
   return (
@@ -67,10 +71,36 @@ export default function Login() {
           <CardHeader className="pb-4">
             <CardTitle className="text-white text-lg">เข้าสู่ระบบ</CardTitle>
             <CardDescription className="text-slate-400">
-              กรุณาระบุชื่อผู้ใช้และรหัสผ่านของคุณ
+              เลือกวิธีเข้าสู่ระบบที่ต้องการ
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
+            {/* Manus OAuth Login Button */}
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full border-slate-600 bg-slate-700/50 hover:bg-slate-600/60 text-white font-medium h-11 gap-3 transition-all duration-150 active:scale-[0.97]"
+              onClick={handleManusLogin}
+            >
+              {/* Manus Logo SVG */}
+              <svg width="20" height="20" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect width="32" height="32" rx="8" fill="#0EA5E9"/>
+                <path d="M8 22V10l8 6 8-6v12" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+              เข้าสู่ระบบด้วย Manus
+            </Button>
+
+            {/* Divider */}
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t border-slate-600/60" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-slate-800 px-3 text-slate-500 tracking-wider">หรือ</span>
+              </div>
+            </div>
+
+            {/* Username/Password Form */}
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
               {error && (
                 <Alert variant="destructive" className="border-red-800 bg-red-900/30">
@@ -114,7 +144,7 @@ export default function Login() {
 
               <Button
                 type="submit"
-                className="w-full bg-teal-600 hover:bg-teal-500 text-white font-medium"
+                className="w-full bg-teal-600 hover:bg-teal-500 text-white font-medium h-11 transition-all duration-150 active:scale-[0.97]"
                 disabled={loginMutation.isPending}
               >
                 {loginMutation.isPending ? (
@@ -123,12 +153,13 @@ export default function Login() {
                     กำลังเข้าสู่ระบบ...
                   </>
                 ) : (
-                  "เข้าสู่ระบบ"
+                  "เข้าสู่ระบบด้วย Username"
                 )}
               </Button>
             </form>
 
-            <div className="mt-6 p-3 rounded-lg bg-slate-700/30 border border-slate-600/50">
+            {/* Test accounts hint */}
+            <div className="mt-2 p-3 rounded-lg bg-slate-700/30 border border-slate-600/50">
               <p className="text-xs text-slate-400 font-medium mb-2">บัญชีทดสอบ:</p>
               <div className="space-y-1 text-xs text-slate-500">
                 <div className="flex justify-between">

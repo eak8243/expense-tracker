@@ -18,7 +18,10 @@ const redirectToLoginIfUnauthorized = (error: unknown) => {
 
   if (!isUnauthorized) return;
 
-  window.location.href = getLoginUrl();
+  // Redirect to app login page instead of Manus OAuth portal directly
+  if (window.location.pathname !== '/login') {
+    window.location.href = '/login';
+  }
 };
 
 queryClient.getQueryCache().subscribe(event => {
