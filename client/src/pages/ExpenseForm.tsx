@@ -78,7 +78,17 @@ export default function ExpenseForm() {
   const utils = trpc.useUtils();
 
   // ─── File state ─────────────────────────────────────────────────────────────
-  const [pendingFiles, setPendingFiles] = useState<PendingFile[]>([]);
+  // Use ref as the single source of truth to avoid stale closure in onSubmit
+  const pendingFilesRef = useRef<PendingFile[]>([]);
+  const [pendingFiles, setPendingFilesState] = useState<PendingFile[]>([]);
+  // Always update both ref and state together
+  const setPendingFiles = useCallback((updater: PendingFile[] | ((prev: PendingFile[]) => PendingFile[])) => {
+    setPendingFilesState((prev) => {
+      const next = typeof updater === "function" ? updater(prev) : updater;
+      pendingFilesRef.current = next; // sync ref immediately (synchronous)
+      return next;
+    });
+  }, []);
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -233,12 +243,6 @@ export default function ExpenseForm() {
   // ─── Create mutation ─────────────────────────────────────────────────────────
   const createMutation = trpc.expenses.create.useMutation();
   const updateMutation = trpc.expenses.update.useMutation();
-
-  // Use a ref to always access the latest pendingFiles without stale closure
-  const pendingFilesRef = useRef<PendingFile[]>([]);
-  useEffect(() => {
-    pendingFilesRef.current = pendingFiles;
-  }, [pendingFiles]);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const onSubmit = async (data: any) => {
