@@ -147,3 +147,7 @@
 - [x] ตรวจสอบ upload flow ใน ExpenseForm.tsx หลัง create mutation สำเร็จ
 - [x] แก้ไข bug ที่ทำให้ไฟล์ไม่ถูก upload ไปยัง storage (stale closure ใน onSuccess callback)
 - [x] ทดสอบ flow: เลือกไฟล์ → บันทึก → ตรวจสอบว่าไฟล์ปรากฏในหน้า Detail
+
+## Feature: File Preview Popup
+- [x] สร้าง FilePreviewModal component รองรับ image lightbox และ PDF viewer
+- [x] เชื่อม FilePreviewModal กับ ExpenseDetail ให้คลิกที่ไฟล์แล้ว popup ขึ้น

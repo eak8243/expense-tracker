@@ -1,4 +1,5 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useCallback } from "react";
+import { FilePreviewModal } from "@/components/FilePreviewModal";
 import { Link, useParams, useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/contexts/AuthContext";
@@ -90,7 +91,28 @@ export default function ExpenseDetail() {
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Preview modal state
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewFiles, setPreviewFiles] = useState<Array<{ id: number; fileNameOriginal: string; fileType: string; fileSize: number; url: string }>>([]);
+  const [previewIndex, setPreviewIndex] = useState(0);
+
   const utils = trpc.useUtils();
+
+  const openPreview = useCallback(async (files: any[], startIndex: number) => {
+    try {
+      const resolved = await Promise.all(
+        files.map(async (f) => {
+          const result = await utils.client.attachments.getDownloadUrl.query({ id: f.id });
+          return { id: f.id, fileNameOriginal: f.fileNameOriginal, fileType: f.fileType, fileSize: f.fileSize, url: result.url };
+        })
+      );
+      setPreviewFiles(resolved);
+      setPreviewIndex(startIndex);
+      setPreviewOpen(true);
+    } catch {
+      toast.error("ไม่สามารถโหลดไฟล์ preview ได้");
+    }
+  }, [utils]);
 
   const { data: expense, isLoading } = trpc.expenses.getById.useQuery({ id: expenseId });
   const { data: history } = trpc.expenses.history.useQuery({ id: expenseId, order: "desc" });
@@ -484,12 +506,13 @@ export default function ExpenseDetail() {
                         <p className="text-xs text-muted-foreground/60 italic">ยังไม่มีไฟล์</p>
                       ) : (
                         <div className="space-y-2">
-                          {files.map((file: any) => (
+                          {files.map((file: any, fileIdx: number) => (
                             <AttachmentItem
                               key={file.id}
                               file={file}
                               canDelete={canEdit && expense.status !== "reimbursed"}
                               onDelete={() => deleteAttachmentMutation.mutate({ id: file.id })}
+                              onPreview={() => openPreview(files, fileIdx)}
                             />
                           ))}
                         </div>
@@ -500,6 +523,14 @@ export default function ExpenseDetail() {
               </CardContent>
             </Card>
           </div>
+
+          {/* File Preview Modal */}
+          <FilePreviewModal
+            files={previewFiles}
+            initialIndex={previewIndex}
+            open={previewOpen}
+            onClose={() => setPreviewOpen(false)}
+          />
 
           {/* History Timeline */}
           <div className="space-y-4">
@@ -699,12 +730,15 @@ function AttachmentItem({
   file,
   canDelete,
   onDelete,
+  onPreview,
 }: {
   file: any;
   canDelete: boolean;
   onDelete: () => void;
+  onPreview?: () => void;
 }) {
   const isImage = file.fileType?.startsWith("image/");
+  const isPdf = file.fileType === "application/pdf";
   const utils = trpc.useUtils();
 
   const handleDownload = async () => {
@@ -716,23 +750,34 @@ function AttachmentItem({
     }
   };
 
+  const canPreview = isImage || isPdf;
+
   return (
-    <div className="flex items-center gap-3 p-2.5 rounded-lg bg-muted/50 border">
-      <div className="w-8 h-8 rounded-lg bg-background border flex items-center justify-center flex-shrink-0">
+    <div className="flex items-center gap-3 p-2.5 rounded-lg bg-muted/50 border hover:bg-muted/80 transition-colors">
+      <button
+        className="w-8 h-8 rounded-lg bg-background border flex items-center justify-center flex-shrink-0 hover:bg-accent/20 transition-colors"
+        onClick={canPreview ? onPreview : handleDownload}
+        title={canPreview ? "คลิกเพื่อ preview" : "ดาวน์โหลด"}
+      >
         {isImage ? (
           <Image className="w-4 h-4 text-blue-500" />
         ) : (
           <FileText className="w-4 h-4 text-red-500" />
         )}
-      </div>
-      <div className="flex-1 min-w-0">
-        <p className="text-xs font-medium truncate">{file.fileNameOriginal}</p>
+      </button>
+      <button
+        className="flex-1 min-w-0 text-left"
+        onClick={canPreview ? onPreview : handleDownload}
+        title={canPreview ? "คลิกเพื่อ preview" : "ดาวน์โหลด"}
+      >
+        <p className="text-xs font-medium truncate hover:text-primary transition-colors">{file.fileNameOriginal}</p>
         <p className="text-xs text-muted-foreground">
           {(file.fileSize / 1024).toFixed(0)} KB
+          {canPreview && <span className="ml-1 text-primary/60">· คลิกเพื่อดู</span>}
         </p>
-      </div>
+      </button>
       <div className="flex items-center gap-1">
-        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleDownload}>
+        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleDownload} title="ดาวน์โหลด">
           <Download className="w-3.5 h-3.5" />
         </Button>
         {canDelete && (
@@ -741,6 +786,7 @@ function AttachmentItem({
             size="icon"
             className="h-7 w-7 text-destructive hover:text-destructive"
             onClick={onDelete}
+            title="ลบไฟล์"
           >
             <Trash2 className="w-3.5 h-3.5" />
           </Button>
