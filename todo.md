@@ -151,3 +151,9 @@
 ## Feature: File Preview Popup
 - [x] สร้าง FilePreviewModal component รองรับ image lightbox และ PDF viewer
 - [x] เชื่อม FilePreviewModal กับ ExpenseDetail ให้คลิกที่ไฟล์แล้ว popup ขึ้น
+
+## Bug Fix: รูปภาพไม่แสดงบน Desktop Browser
+- [x] วิเคราะห์สาเหตุ: /manus-storage/ proxy ทำ HTTP 307 redirect ไปยัง presigned S3 URL ซึ่ง desktop Chrome ปฏิเสธเนื่องจาก CORS
+- [x] แก้ไข storageProxy.ts: เปลี่ยนจาก res.redirect(307) เป็น pipe (stream) file content โดยตรง
+- [x] เพิ่ม Access-Control-Allow-Origin: * header ใน response
+- [x] เขียน unit test ยืนยันว่าไม่มี redirect อีกต่อไป (3 tests passing)
