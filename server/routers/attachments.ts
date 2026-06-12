@@ -7,18 +7,18 @@ import { createHistoryLog } from "../db";
 import path from "path";
 import crypto from "crypto";
 
-// ─── File name sanitizer (supports Thai Unicode) ──────────────────────────────
+// ─── File name sanitizer (ASCII-only for storage key) ────────────────────────
 function sanitizeItemName(name: string): string {
-  // NFC normalize
+  // NFC normalize first
   const normalized = name.normalize("NFC");
-  // Allow Thai Unicode, English letters, numbers, hyphen, underscore
-  // Remove everything else
+  // Keep only ASCII letters, numbers, hyphen, underscore — strip Thai and all non-ASCII
   const cleaned = normalized
     .replace(/\s+/g, "-")
-    .replace(/[^\u0E00-\u0E7FA-Za-z0-9\-_]/g, "")
+    .replace(/[^A-Za-z0-9\-_]/g, "")  // ASCII only, no Thai
     .replace(/-{2,}/g, "-")
     .replace(/^-+|-+$/g, "");
-  return cleaned.substring(0, 40);
+  // If result is empty (e.g. all-Thai name), fall back to "item"
+  return (cleaned.substring(0, 40) || "item");
 }
 
 function generateStoredFileName(
