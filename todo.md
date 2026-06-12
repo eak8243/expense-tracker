@@ -157,3 +157,20 @@
 - [x] แก้ไข storageProxy.ts: เปลี่ยนจาก res.redirect(307) เป็น pipe (stream) file content โดยตรง
 - [x] เพิ่ม Access-Control-Allow-Origin: * header ใน response
 - [x] เขียน unit test ยืนยันว่าไม่มี redirect อีกต่อไป (3 tests passing)
+
+## Feature: เบิกรวม (Batch Reimbursement)
+- [x] สร้าง reimbursement_batches table: id, batchNo, note, totalAmount, reimbursedAt, createdBy, createdAt
+- [x] สร้าง expense_batch_items table: batchId, expenseId (many-to-many)
+- [x] Generate migration SQL และ apply ผ่าน webdev_execute_sql
+- [x] Backend: createBatch mutation (รับ expenseIds[], note, reimbursedAt) — เปลี่ยนสถานะ expense ทุกตัวเป็น reimbursed
+- [x] Backend: getBatch query (ดึง batch + expenses ในกลุ่ม)
+- [x] Backend: listBatches query (รายการ batch ทั้งหมด)
+- [x] Backend: deleteBatch mutation (admin only, ย้อนสถานะ expenses กลับ)
+- [x] Backend: upload reimbursement_proof attachment ผูกกับ batchId (ไฟล์เดียวใช้กับทุก expense ในกลุ่ม)
+- [x] Frontend ExpenseList: เพิ่ม checkbox multi-select สำหรับ expense ที่สถานะ "claimed"
+- [x] Frontend ExpenseList: เพิ่มปุ่ม "เบิกรวม" เมื่อเลือก expense อย่างน้อย 1 รายการ
+- [x] Frontend BatchReimbursementModal: แสดงรายการ expense ที่เลือก, ยอดรวม, ช่องวันที่รับเงิน, หมายเหตุ, อัปโหลดหลักฐาน
+- [x] Frontend ExpenseDetail: แสดง batch info (batchNo, วันที่, ยอดรวม, รายการอื่นในกลุ่ม)
+- [x] Frontend: หน้า BatchList (/batches) แสดงรายการ batch ทั้งหมด พร้อมลิงก์ไปดูรายละเอียด
+- [x] Frontend: หน้า BatchDetail (/batches/:id) แสดงรายละเอียด batch พร้อม expense items
+- [x] เขียน vitest tests สำหรับ batch router (10 tests passed)

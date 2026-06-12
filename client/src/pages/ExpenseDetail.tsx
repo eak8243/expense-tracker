@@ -39,6 +39,8 @@ import {
   Loader2,
   AlertTriangle,
   Plus,
+  Banknote,
+  ExternalLink,
 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -116,6 +118,10 @@ export default function ExpenseDetail() {
 
   const { data: expense, isLoading } = trpc.expenses.getById.useQuery({ id: expenseId });
   const { data: history } = trpc.expenses.history.useQuery({ id: expenseId, order: "desc" });
+  const { data: batchInfo } = trpc.batches.getByExpenseId.useQuery(
+    { expenseId },
+    { enabled: !!expenseId }
+  );
 
   const markClaimedMutation = trpc.expenses.markClaimed.useMutation({
     onSuccess: () => {
@@ -421,6 +427,31 @@ export default function ExpenseDetail() {
                       <div className="flex items-center justify-between text-sm">
                         <p className="text-muted-foreground">จำนวนที่ได้รับ</p>
                         <p className="font-semibold tabular-nums">฿{formatAmount(expense.reimbursedAmount)}</p>
+                      </div>
+                    )}
+                    {batchInfo && (
+                      <div className="mt-1 p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-medium text-emerald-400 flex items-center gap-1">
+                            <Banknote className="w-3.5 h-3.5" />
+                            กลุ่มเบิกรวม
+                          </span>
+                          <Link href={`/batches/${batchInfo.batchId}`} className="flex items-center gap-1 text-emerald-400 hover:underline font-mono text-xs">
+                            {batchInfo.batchNo}
+                            <ExternalLink className="w-3 h-3" />
+                          </Link>
+                        </div>
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-muted-foreground">วันที่รับเงิน</span>
+                          <span>{formatDate(batchInfo.reimbursedAt)}</span>
+                        </div>
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-muted-foreground">ยอดรวมทั้งกลุ่ม</span>
+                          <span className="font-semibold tabular-nums">฿{formatAmount(batchInfo.totalAmount)}</span>
+                        </div>
+                        {batchInfo.note && (
+                          <p className="text-xs text-muted-foreground border-t border-emerald-500/20 pt-1.5">{batchInfo.note}</p>
+                        )}
                       </div>
                     )}
                   </>

@@ -7,6 +7,7 @@ import { dashboardRouter } from "./routers/dashboard";
 import { adminRouter } from "./routers/admin";
 import { exportRouter } from "./routers/exportRouter";
 import { settingsRouter } from "./routers/settings";
+import { batchesRouter } from "./routers/batches";
 
 export const appRouter = router({
   system: systemRouter,
@@ -17,6 +18,7 @@ export const appRouter = router({
   admin: adminRouter,
   export: exportRouter,
   settings: settingsRouter,
+  batches: batchesRouter,
 });
 
 export type AppRouter = typeof appRouter;

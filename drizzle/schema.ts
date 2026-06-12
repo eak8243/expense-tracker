@@ -246,3 +246,55 @@ export const systemSettings = mysqlTable("system_settings", {
 
 export type SystemSetting = typeof systemSettings.$inferSelect;
 export type InsertSystemSetting = typeof systemSettings.$inferInsert;
+
+// ─── Reimbursement Batches ────────────────────────────────────────────────────
+// กลุ่มการเบิกรวม: หลาย expense ถูกเบิกคืนในการโอนเดียวกัน
+export const reimbursementBatches = mysqlTable(
+  "reimbursement_batches",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    batchNo: varchar("batchNo", { length: 32 }).notNull().unique(), // BATCH-YYYY-XXXXXX
+    note: text("note"),
+    totalAmount: decimal("totalAmount", { precision: 15, scale: 2 }).notNull(),
+    reimbursedAt: timestamp("reimbursedAt").notNull(), // วันที่รับเงิน
+    // หลักฐานการรับเงิน (ไฟล์เดียวใช้กับทุก expense ในกลุ่ม)
+    proofFileKey: varchar("proofFileKey", { length: 1024 }),
+    proofFileName: varchar("proofFileName", { length: 512 }),
+    proofFileType: varchar("proofFileType", { length: 64 }),
+    createdBy: int("createdBy")
+      .notNull()
+      .references(() => users.id),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  },
+  (t) => [
+    index("idx_batches_createdBy").on(t.createdBy),
+    index("idx_batches_reimbursedAt").on(t.reimbursedAt),
+  ]
+);
+
+export type ReimbursementBatch = typeof reimbursementBatches.$inferSelect;
+export type InsertReimbursementBatch = typeof reimbursementBatches.$inferInsert;
+
+// ─── Expense Batch Items ──────────────────────────────────────────────────────
+// ความสัมพันธ์ many-to-many ระหว่าง batch และ expense
+export const expenseBatchItems = mysqlTable(
+  "expense_batch_items",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    batchId: int("batchId")
+      .notNull()
+      .references(() => reimbursementBatches.id),
+    expenseId: int("expenseId")
+      .notNull()
+      .references(() => expenses.id),
+    expenseAmount: decimal("expenseAmount", { precision: 15, scale: 2 }).notNull(), // snapshot ณ เวลาเบิก
+  },
+  (t) => [
+    index("idx_batch_items_batchId").on(t.batchId),
+    index("idx_batch_items_expenseId").on(t.expenseId),
+  ]
+);
+
+export type ExpenseBatchItem = typeof expenseBatchItems.$inferSelect;
+export type InsertExpenseBatchItem = typeof expenseBatchItems.$inferInsert;

@@ -1,15 +1,17 @@
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { Link } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/contexts/AuthContext";
 import { AppLayout } from "@/components/AppLayout";
 import { StatusBadge, EXPENSE_TYPE_LABELS } from "@/components/StatusBadge";
+import { BatchReimbursementModal } from "@/components/BatchReimbursementModal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   PlusCircle,
   Search,
@@ -20,6 +22,8 @@ import {
   Calendar,
   X,
   Download,
+  Banknote,
+  CheckSquare,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -52,6 +56,11 @@ export default function ExpenseList() {
   const [showFilters, setShowFilters] = useState(false);
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 20;
+
+  // Multi-select for batch reimbursement
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [batchModalOpen, setBatchModalOpen] = useState(false);
 
   const { data: masterData } = trpc.expenses.masterData.useQuery();
   const companies = masterData?.companies ?? [];
@@ -97,6 +106,32 @@ export default function ExpenseList() {
     setAmountMax("");
     setPage(1);
   };
+
+  // Only claimed expenses can be batch-reimbursed
+  const claimedExpenses = expenses.filter((e: any) => e.status === "claimed");
+  const selectedExpenses = expenses.filter((e: any) => selectedIds.has(e.id));
+
+  const toggleSelectMode = () => {
+    setSelectMode(!selectMode);
+    setSelectedIds(new Set());
+  };
+
+  const toggleSelect = (id: number, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const selectAllClaimed = () => {
+    setSelectedIds(new Set(claimedExpenses.map((e: any) => e.id)));
+  };
+
+  const clearSelection = () => setSelectedIds(new Set());
 
   const handleExport = async () => {
     try {
@@ -156,7 +191,7 @@ export default function ExpenseList() {
               {total > 0 ? `พบ ${total} รายการ` : "ยังไม่มีรายการ"}
             </p>
           </div>
-          <div className="flex gap-2 flex-shrink-0">
+          <div className="flex gap-2 flex-shrink-0 flex-wrap justify-end">
             {user?.role !== "viewer" && (
               <Link href="/expenses/new">
                 <Button className="gap-2 hidden sm:flex">
@@ -164,6 +199,18 @@ export default function ExpenseList() {
                   บันทึกใหม่
                 </Button>
               </Link>
+            )}
+            {/* Batch select toggle — only for non-viewer */}
+            {user?.role !== "viewer" && (
+              <Button
+                variant={selectMode ? "default" : "outline"}
+                className="gap-2"
+                onClick={toggleSelectMode}
+                title="เลือกหลายรายการเพื่อเบิกรวม"
+              >
+                <CheckSquare className="w-4 h-4" />
+                <span className="hidden sm:inline">{selectMode ? "ยกเลิกเลือก" : "เลือกเบิกรวม"}</span>
+              </Button>
             )}
             <Button variant="outline" size="icon" className="sm:hidden" onClick={handleExport} disabled={exportCsv.isPending}>
               <Download className="w-4 h-4" />
@@ -178,6 +225,52 @@ export default function ExpenseList() {
             </Button>
           </div>
         </div>
+
+        {/* Batch action bar */}
+        {selectMode && (
+          <div className="flex items-center gap-3 p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-xl">
+            <span className="text-sm font-medium text-emerald-400">
+              เลือกแล้ว {selectedIds.size} รายการ
+              {selectedIds.size > 0 && (
+                <span className="text-muted-foreground ml-1">
+                  (รวม ฿{formatAmount(
+                    selectedExpenses.reduce((s: number, e: any) => s + parseFloat(e.amount ?? "0"), 0)
+                  )})
+                </span>
+              )}
+            </span>
+            <div className="flex gap-2 ml-auto">
+              {claimedExpenses.length > 0 && (
+                <Button variant="outline" size="sm" onClick={selectAllClaimed} className="text-xs">
+                  เลือกทั้งหมดที่ทำเบิกแล้ว ({claimedExpenses.length})
+                </Button>
+              )}
+              {selectedIds.size > 0 && (
+                <>
+                  <Button variant="ghost" size="sm" onClick={clearSelection} className="text-xs">
+                    ล้าง
+                  </Button>
+                  <Button
+                    size="sm"
+                    className="gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-xs"
+                    onClick={() => {
+                      // Validate all selected are claimed
+                      const nonClaimed = selectedExpenses.filter((e: any) => e.status !== "claimed");
+                      if (nonClaimed.length > 0) {
+                        toast.error(`รายการ ${nonClaimed.map((e: any) => e.expenseNo).join(", ")} ต้องอยู่ในสถานะ "ทำเบิกแล้ว" ก่อนเบิกรวม`);
+                        return;
+                      }
+                      setBatchModalOpen(true);
+                    }}
+                  >
+                    <Banknote className="w-3.5 h-3.5" />
+                    เบิกรวม {selectedIds.size} รายการ
+                  </Button>
+                </>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Search & Filter Bar */}
         <div className="space-y-3">
@@ -338,9 +431,44 @@ export default function ExpenseList() {
           </Card>
         ) : (
           <div className="space-y-2">
-            {expenses.map((expense: any) => (
-              <Link key={expense.id} href={`/expenses/${expense.id}`}>
-                <div className="group flex items-center gap-4 p-4 bg-card border rounded-xl hover:shadow-md hover:border-primary/30 transition-all cursor-pointer">
+            {expenses.map((expense: any) => {
+              const isSelected = selectedIds.has(expense.id);
+              const isClaimed = expense.status === "claimed";
+              const canSelect = selectMode && isClaimed;
+
+              const cardContent = (
+                <div
+                  className={`group flex items-center gap-3 sm:gap-4 p-4 bg-card border rounded-xl transition-all cursor-pointer
+                    ${selectMode
+                      ? isSelected
+                        ? "border-emerald-500 bg-emerald-500/5 shadow-sm"
+                        : isClaimed
+                          ? "hover:border-emerald-500/50 hover:bg-emerald-500/5"
+                          : "opacity-60"
+                      : "hover:shadow-md hover:border-primary/30"
+                    }`}
+                  onClick={canSelect ? (e) => toggleSelect(expense.id, e) : undefined}
+                >
+                  {/* Checkbox (select mode) */}
+                  {selectMode && (
+                    <div className="flex-shrink-0" onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
+                      <Checkbox
+                        checked={isSelected}
+                        disabled={!isClaimed}
+                        onCheckedChange={() => {
+                          if (!isClaimed) return;
+                          setSelectedIds((prev) => {
+                            const next = new Set(prev);
+                            if (next.has(expense.id)) next.delete(expense.id);
+                            else next.add(expense.id);
+                            return next;
+                          });
+                        }}
+                        className="h-5 w-5"
+                      />
+                    </div>
+                  )}
+
                   {/* Type indicator */}
                   <div className={`w-1.5 h-12 rounded-full flex-shrink-0 ${
                     expense.expenseType === "iou_advance" ? "bg-orange-400" : "bg-teal-500"
@@ -348,7 +476,7 @@ export default function ExpenseList() {
 
                   {/* Main info */}
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
                       <p className="font-medium text-sm truncate">{expense.itemName}</p>
                       <StatusBadge status={expense.status} showIcon={false} />
                     </div>
@@ -377,10 +505,20 @@ export default function ExpenseList() {
                     <p className="text-xs text-muted-foreground">{EXPENSE_TYPE_LABELS[expense.expenseType] ?? expense.expenseType}</p>
                   </div>
 
-                  <ChevronRight className="w-4 h-4 text-muted-foreground/40 group-hover:text-primary transition-colors flex-shrink-0" />
+                  {!selectMode && (
+                    <ChevronRight className="w-4 h-4 text-muted-foreground/40 group-hover:text-primary transition-colors flex-shrink-0" />
+                  )}
                 </div>
-              </Link>
-            ))}
+              );
+
+              return selectMode ? (
+                <div key={expense.id}>{cardContent}</div>
+              ) : (
+                <Link key={expense.id} href={`/expenses/${expense.id}`}>
+                  {cardContent}
+                </Link>
+              );
+            })}
           </div>
         )}
 
@@ -409,6 +547,24 @@ export default function ExpenseList() {
           </div>
         )}
       </div>
+
+      {/* Batch Reimbursement Modal */}
+      <BatchReimbursementModal
+        open={batchModalOpen}
+        onClose={() => setBatchModalOpen(false)}
+        selectedExpenses={selectedExpenses.map((e: any) => ({
+          id: e.id,
+          expenseNo: e.expenseNo,
+          itemName: e.itemName,
+          amount: e.amount,
+          currency: e.currency ?? "THB",
+          companyName: e.companyName,
+        }))}
+        onSuccess={() => {
+          setSelectMode(false);
+          setSelectedIds(new Set());
+        }}
+      />
     </AppLayout>
   );
 }

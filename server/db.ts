@@ -8,13 +8,16 @@ import {
   expenseHistoryLogs,
   expenseNumberSeq,
   expenses,
+  expenseBatchItems,
   paymentMethods,
+  reimbursementBatches,
   users,
   type InsertAuditLog,
   type InsertExpense,
   type InsertExpenseAttachment,
   type InsertExpenseHistoryLog,
   type InsertUser,
+  type InsertReimbursementBatch,
 } from "../drizzle/schema";
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -716,4 +719,200 @@ export async function getRecentExpenses(userId?: number, limit = 10, companyId?:
     .where(where)
     .orderBy(desc(expenses.createdAt))
     .limit(limit);
+}
+
+// ─── Reimbursement Batch Helpers ──────────────────────────────────────────────
+
+export async function generateBatchNumber(): Promise<string> {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const year = new Date().getFullYear();
+  // Use expense_number_seq table with a special "BATCH" prefix key stored as year 9000+batchYear
+  // Actually use a separate approach: count existing batches for this year
+  const countResult = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(reimbursementBatches)
+    .where(like(reimbursementBatches.batchNo, `BATCH-${year}-%`));
+  const count = Number(countResult[0]?.count ?? 0) + 1;
+  return `BATCH-${year}-${String(count).padStart(6, "0")}`;
+}
+
+export async function createReimbursementBatch(
+  data: InsertReimbursementBatch,
+  expenseIds: number[]
+) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+
+  // Insert batch
+  const [result] = await db.insert(reimbursementBatches).values(data).$returningId();
+  const batchId = result.id;
+
+  // Get expense amounts for snapshot
+  const expenseRows = await db
+    .select({ id: expenses.id, amount: expenses.amount })
+    .from(expenses)
+    .where(inArray(expenses.id, expenseIds));
+
+  // Insert batch items
+  const items = expenseRows.map((e) => ({
+    batchId,
+    expenseId: e.id,
+    expenseAmount: e.amount,
+  }));
+  await db.insert(expenseBatchItems).values(items);
+
+  // Update expenses: status → reimbursed, reimbursedDate, batchId ref
+  await db
+    .update(expenses)
+    .set({ status: "reimbursed", reimbursedDate: data.reimbursedAt })
+    .where(inArray(expenses.id, expenseIds));
+
+  return batchId;
+}
+
+export async function getReimbursementBatchById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+
+  const batch = await db
+    .select({
+      id: reimbursementBatches.id,
+      batchNo: reimbursementBatches.batchNo,
+      note: reimbursementBatches.note,
+      totalAmount: reimbursementBatches.totalAmount,
+      reimbursedAt: reimbursementBatches.reimbursedAt,
+      proofFileKey: reimbursementBatches.proofFileKey,
+      proofFileName: reimbursementBatches.proofFileName,
+      proofFileType: reimbursementBatches.proofFileType,
+      createdAt: reimbursementBatches.createdAt,
+      createdByName: users.name,
+    })
+    .from(reimbursementBatches)
+    .leftJoin(users, eq(reimbursementBatches.createdBy, users.id))
+    .where(eq(reimbursementBatches.id, id))
+    .limit(1);
+
+  if (!batch[0]) return undefined;
+
+  // Get items
+  const items = await db
+    .select({
+      id: expenseBatchItems.id,
+      expenseId: expenseBatchItems.expenseId,
+      expenseAmount: expenseBatchItems.expenseAmount,
+      expenseNo: expenses.expenseNo,
+      itemName: expenses.itemName,
+      expenseDate: expenses.expenseDate,
+      status: expenses.status,
+      companyName: companies.companyName,
+      userName: users.name,
+    })
+    .from(expenseBatchItems)
+    .leftJoin(expenses, eq(expenseBatchItems.expenseId, expenses.id))
+    .leftJoin(companies, eq(expenses.companyId, companies.id))
+    .leftJoin(users, eq(expenses.userId, users.id))
+    .where(eq(expenseBatchItems.batchId, id));
+
+  return { ...batch[0], items };
+}
+
+export async function listReimbursementBatches(userId?: number) {
+  const db = await getDb();
+  if (!db) return [];
+
+  const where = userId ? eq(reimbursementBatches.createdBy, userId) : undefined;
+
+  const batches = await db
+    .select({
+      id: reimbursementBatches.id,
+      batchNo: reimbursementBatches.batchNo,
+      note: reimbursementBatches.note,
+      totalAmount: reimbursementBatches.totalAmount,
+      reimbursedAt: reimbursementBatches.reimbursedAt,
+      proofFileName: reimbursementBatches.proofFileName,
+      createdAt: reimbursementBatches.createdAt,
+      createdByName: users.name,
+    })
+    .from(reimbursementBatches)
+    .leftJoin(users, eq(reimbursementBatches.createdBy, users.id))
+    .where(where)
+    .orderBy(desc(reimbursementBatches.createdAt));
+
+  // Count items per batch
+  const batchIds = batches.map((b) => b.id);
+  if (batchIds.length === 0) return batches.map((b) => ({ ...b, expenseCount: 0 }));
+
+  const counts = await db
+    .select({
+      batchId: expenseBatchItems.batchId,
+      count: sql<number>`count(*)`,
+    })
+    .from(expenseBatchItems)
+    .where(inArray(expenseBatchItems.batchId, batchIds))
+    .groupBy(expenseBatchItems.batchId);
+
+  const countMap = new Map(counts.map((c) => [c.batchId, Number(c.count)]));
+  return batches.map((b) => ({ ...b, expenseCount: countMap.get(b.id) ?? 0 }));
+}
+
+export async function getExpenseBatch(expenseId: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+
+  const item = await db
+    .select({
+      batchId: expenseBatchItems.batchId,
+      batchNo: reimbursementBatches.batchNo,
+      totalAmount: reimbursementBatches.totalAmount,
+      reimbursedAt: reimbursementBatches.reimbursedAt,
+      note: reimbursementBatches.note,
+    })
+    .from(expenseBatchItems)
+    .leftJoin(reimbursementBatches, eq(expenseBatchItems.batchId, reimbursementBatches.id))
+    .where(eq(expenseBatchItems.expenseId, expenseId))
+    .limit(1);
+
+  return item[0];
+}
+
+export async function deleteReimbursementBatch(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+
+  // Get expense IDs in this batch
+  const items = await db
+    .select({ expenseId: expenseBatchItems.expenseId })
+    .from(expenseBatchItems)
+    .where(eq(expenseBatchItems.batchId, id));
+
+  const expenseIds = items.map((i) => i.expenseId);
+
+  // Revert expenses back to claimed status
+  if (expenseIds.length > 0) {
+    await db
+      .update(expenses)
+      .set({ status: "claimed", reimbursedDate: null })
+      .where(inArray(expenses.id, expenseIds));
+  }
+
+  // Delete batch items
+  await db.delete(expenseBatchItems).where(eq(expenseBatchItems.batchId, id));
+
+  // Delete batch
+  await db.delete(reimbursementBatches).where(eq(reimbursementBatches.id, id));
+}
+
+export async function updateBatchProof(
+  batchId: number,
+  proofFileKey: string,
+  proofFileName: string,
+  proofFileType: string
+) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  await db
+    .update(reimbursementBatches)
+    .set({ proofFileKey, proofFileName, proofFileType })
+    .where(eq(reimbursementBatches.id, batchId));
 }

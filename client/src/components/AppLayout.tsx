@@ -19,6 +19,7 @@ import {
   Download,
   User,
   HardDrive,
+  Banknote,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -29,6 +30,7 @@ const NAV_ITEMS = [
       { href: "/", label: "แดชบอร์ด", icon: LayoutDashboard, roles: ["user", "admin", "viewer"] },
       { href: "/expenses", label: "รายการค่าใช้จ่าย", icon: Receipt, roles: ["user", "admin", "viewer"] },
       { href: "/expenses/new", label: "บันทึกค่าใช้จ่าย", icon: PlusCircle, roles: ["user", "admin"] },
+      { href: "/batches", label: "กลุ่มเบิกรวม", icon: Banknote, roles: ["user", "admin", "viewer"] },
       { href: "/export", label: "ส่งออกข้อมูล", icon: Download, roles: ["user", "admin", "viewer"] },
     ],
   },

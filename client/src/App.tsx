@@ -14,6 +14,8 @@ import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminUsers from "./pages/admin/AdminUsers";
 import AdminMasterData from "./pages/admin/AdminMasterData";
 import AdminStorageSettings from "./pages/AdminStorageSettings";
+import BatchList from "./pages/BatchList";
+import BatchDetail from "./pages/BatchDetail";
 
 function ProtectedRoute({ component: Component, adminOnly = false }: { component: React.ComponentType; adminOnly?: boolean }) {
   const { user, loading } = useAuth();
@@ -56,6 +58,14 @@ function Router() {
       </Route>
       <Route path="/expenses/:id">
         <ProtectedRoute component={ExpenseDetail} />
+      </Route>
+
+      {/* Batches */}
+      <Route path="/batches">
+        <ProtectedRoute component={BatchList} />
+      </Route>
+      <Route path="/batches/:id">
+        <ProtectedRoute component={BatchDetail} />
       </Route>
 
       {/* Admin */}
