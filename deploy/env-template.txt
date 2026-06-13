@@ -1,0 +1,26 @@
+# ─── Database ─────────────────────────────────────────────────────────────────
+MYSQL_ROOT_PASSWORD=change_me_root_password
+MYSQL_USER=expense_user
+MYSQL_PASSWORD=change_me_db_password
+
+# ─── App Auth ─────────────────────────────────────────────────────────────────
+# สร้างด้วย: openssl rand -base64 32
+JWT_SECRET=change_me_jwt_secret_at_least_32_chars
+
+# ─── Manus OAuth ──────────────────────────────────────────────────────────────
+# ดูค่าเหล่านี้ได้จาก Manus Project Settings → Secrets
+VITE_APP_ID=
+OAUTH_SERVER_URL=https://api.manus.im
+VITE_OAUTH_PORTAL_URL=https://manus.im
+OWNER_OPEN_ID=
+OWNER_NAME=
+
+# ─── Manus Built-in APIs ──────────────────────────────────────────────────────
+BUILT_IN_FORGE_API_URL=
+BUILT_IN_FORGE_API_KEY=
+VITE_FRONTEND_FORGE_API_KEY=
+VITE_FRONTEND_FORGE_API_URL=
+
+# ─── App Display ──────────────────────────────────────────────────────────────
+VITE_APP_TITLE=Expense Tracker
+VITE_APP_LOGO=
