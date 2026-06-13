@@ -80,9 +80,12 @@ export default function Dashboard() {
     if (!data?.summary) return [];
     const s = data.summary as any;
     const pendingUsdCount = Number(s.pendingUsdCount ?? 0);
+    const draftPendingUsdCount = Number(s.draftPendingUsdCount ?? 0);
     const usdRate = (data as any).usdExchangeRate ?? 36;
     const estimatedTotal = (data as any).estimatedTotal ?? parseFloat(s.totalAmount ?? "0");
+    const estimatedDraftTotal = (data as any).estimatedDraftTotal ?? parseFloat(s.draftAmount ?? "0");
     const showEstimated = pendingUsdCount > 0;
+    const showDraftEstimated = draftPendingUsdCount > 0;
     return [
       {
         title: showEstimated ? "ยอดรวม (ประมาณการ)" : "ยอดรวมทั้งหมด",
@@ -93,12 +96,13 @@ export default function Dashboard() {
         bg: showEstimated ? "bg-orange-100" : "bg-slate-100",
       },
       {
-        title: "รอทำเบิก (ร่าง)",
-        value: formatAmount(s.draftAmount),
+        title: showDraftEstimated ? "รอทำเบิก (ร่าง) (ประมาณการ)" : "รอทำเบิก (ร่าง)",
+        value: formatAmount(showDraftEstimated ? estimatedDraftTotal : s.draftAmount),
         count: Number(s.draftCount ?? 0),
+        subtitle: showDraftEstimated ? `รวม USD ${draftPendingUsdCount} รายการ (อัตรา ฿${usdRate.toFixed(2)}/USD)` : undefined,
         icon: Clock,
-        color: "text-amber-700",
-        bg: "bg-amber-100",
+        color: showDraftEstimated ? "text-orange-700" : "text-amber-700",
+        bg: showDraftEstimated ? "bg-orange-100" : "bg-amber-100",
       },
       {
         title: "ทำเบิกแล้ว",

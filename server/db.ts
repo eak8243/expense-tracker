@@ -488,6 +488,9 @@ export async function getUserDashboardSummary(userId: number, companyId?: number
       // USD expenses that have no THB amount yet
       pendingUsdAmount: sql<string>`COALESCE(SUM(CASE WHEN ${expenses.foreignCurrency} = 'USD' AND (${expenses.amount} = 0 OR ${expenses.amount} IS NULL) THEN ${expenses.foreignAmount} ELSE 0 END), 0)`,
       pendingUsdCount: sql<number>`SUM(CASE WHEN ${expenses.foreignCurrency} = 'USD' AND (${expenses.amount} = 0 OR ${expenses.amount} IS NULL) THEN 1 ELSE 0 END)`,
+      // USD draft expenses with no THB amount
+      draftPendingUsdAmount: sql<string>`COALESCE(SUM(CASE WHEN ${expenses.status} = 'draft' AND ${expenses.foreignCurrency} = 'USD' AND (${expenses.amount} = 0 OR ${expenses.amount} IS NULL) THEN ${expenses.foreignAmount} ELSE 0 END), 0)`,
+      draftPendingUsdCount: sql<number>`SUM(CASE WHEN ${expenses.status} = 'draft' AND ${expenses.foreignCurrency} = 'USD' AND (${expenses.amount} = 0 OR ${expenses.amount} IS NULL) THEN 1 ELSE 0 END)`,
     })
     .from(expenses)
     .where(and(...conditions));
@@ -513,6 +516,9 @@ export async function getAdminDashboardSummary(companyId?: number) {
       // USD expenses that have no THB amount yet
       pendingUsdAmount: sql<string>`COALESCE(SUM(CASE WHEN ${expenses.foreignCurrency} = 'USD' AND (${expenses.amount} = 0 OR ${expenses.amount} IS NULL) THEN ${expenses.foreignAmount} ELSE 0 END), 0)`,
       pendingUsdCount: sql<number>`SUM(CASE WHEN ${expenses.foreignCurrency} = 'USD' AND (${expenses.amount} = 0 OR ${expenses.amount} IS NULL) THEN 1 ELSE 0 END)`,
+      // USD draft expenses with no THB amount
+      draftPendingUsdAmount: sql<string>`COALESCE(SUM(CASE WHEN ${expenses.status} = 'draft' AND ${expenses.foreignCurrency} = 'USD' AND (${expenses.amount} = 0 OR ${expenses.amount} IS NULL) THEN ${expenses.foreignAmount} ELSE 0 END), 0)`,
+      draftPendingUsdCount: sql<number>`SUM(CASE WHEN ${expenses.status} = 'draft' AND ${expenses.foreignCurrency} = 'USD' AND (${expenses.amount} = 0 OR ${expenses.amount} IS NULL) THEN 1 ELSE 0 END)`,
     })
     .from(expenses)
     .where(where);

@@ -62,7 +62,10 @@ export const dashboardRouter = router({
       // Compute estimated total: actual THB + pending USD * exchange rate
       const pendingUsdThb = parseFloat(summary?.pendingUsdAmount ?? "0") * usdRate;
       const estimatedTotal = parseFloat(summary?.totalAmount ?? "0") + pendingUsdThb;
-      return { summary, byCompany, byCategory, byType, recent, usdExchangeRate: usdRate, estimatedTotal };
+      // Compute estimated draft total: actual draft THB + pending draft USD * exchange rate
+      const draftPendingUsdThb = parseFloat(summary?.draftPendingUsdAmount ?? "0") * usdRate;
+      const estimatedDraftTotal = parseFloat(summary?.draftAmount ?? "0") + draftPendingUsdThb;
+      return { summary, byCompany, byCategory, byType, recent, usdExchangeRate: usdRate, estimatedTotal, estimatedDraftTotal };
     }),
 
   myMonthlyTrend: protectedProcedure
@@ -91,7 +94,10 @@ export const dashboardRouter = router({
       // Compute estimated total: actual THB + pending USD * exchange rate
       const pendingUsdThb = parseFloat(summary?.pendingUsdAmount ?? "0") * usdRate;
       const estimatedTotal = parseFloat(summary?.totalAmount ?? "0") + pendingUsdThb;
-      return { summary, byCompany, byCategory, byType, byUser, recent, usdExchangeRate: usdRate, estimatedTotal };
+      // Compute estimated draft total: actual draft THB + pending draft USD * exchange rate
+      const draftPendingUsdThb = parseFloat(summary?.draftPendingUsdAmount ?? "0") * usdRate;
+      const estimatedDraftTotal = parseFloat(summary?.draftAmount ?? "0") + draftPendingUsdThb;
+      return { summary, byCompany, byCategory, byType, byUser, recent, usdExchangeRate: usdRate, estimatedTotal, estimatedDraftTotal };
     }),
 
   adminMonthlyTrend: protectedProcedure
