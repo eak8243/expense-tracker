@@ -194,3 +194,9 @@
 - [x] Dashboard backend: pendingUsdAmount + pendingUsdCount ใน summary, คำนวณ estimatedTotal
 - [x] Dashboard frontend: แสดง "ยอดรวม (ประมาณการ)" พร้อม subtitle เมื่อมี pending USD
 - [x] Tests: 13 tests สำหรับ exchange rate logic ผ่านทั้งหมด
+
+## Bug Fix: Export CSV/Excel ภาษาไทยแสดงผิด (Encoding)
+- [x] วิเคราะห์สาเหตุ: frontend ใช้ Buffer.from() ซึ่งเป็น Node.js API ไม่มีใน browser ทำให้ decode base64 ผิดพลาด
+- [x] แก้ไข ExpenseList.tsx: เปลี่ยนจาก Buffer.from(result.content, 'base64') เป็น atob() + Uint8Array สำหรับ CSV
+- [x] ยืนยัน Excel export ใช้ atob() อยู่แล้ว (ถูกต้อง)
+- [x] 37 tests passing

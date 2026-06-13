@@ -137,7 +137,10 @@ export default function ExpenseList() {
         dateFrom: dateFrom ? new Date(dateFrom) : undefined,
         dateTo: dateTo ? new Date(dateTo) : undefined,
       });
-      const blob = new Blob([Buffer.from(result.content, 'base64')], { type: result.mimeType });
+      const byteChars = atob(result.content);
+      const byteNums = new Array(byteChars.length);
+      for (let i = 0; i < byteChars.length; i++) byteNums[i] = byteChars.charCodeAt(i);
+      const blob = new Blob([new Uint8Array(byteNums)], { type: result.mimeType });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
