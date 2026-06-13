@@ -195,6 +195,33 @@ export const settingsRouter = router({
     const storageType = await getSetting("storage_type");
     return { storageType: storageType ?? "builtin" };
   }),
+
+  // Get USD exchange rate (all authenticated users)
+  getExchangeRate: protectedProcedure.query(async () => {
+    const val = await getSetting("usd_exchange_rate");
+    const updatedAtVal = await getSetting("usd_exchange_rate_updated_at");
+    const updatedByName = await getSetting("usd_exchange_rate_updated_by_name");
+    return {
+      rate: val ? parseFloat(val) : 36.0,
+      updatedAt: updatedAtVal ? new Date(updatedAtVal) : null,
+      updatedByName: updatedByName ?? null,
+    };
+  }),
+
+  // Set USD exchange rate (admin only)
+  setExchangeRate: adminProcedure
+    .input(
+      z.object({
+        rate: z.number().positive("อัตราแลกเปลี่ยนต้องมากกว่า 0").max(999, "อัตราแลกเปลี่ยนเกินขอบเขต"),
+      })
+    )
+    .mutation(async ({ input, ctx }) => {
+      const uid = ctx.user.id;
+      await setSetting("usd_exchange_rate", String(input.rate), "อัตราแลกเปลี่ยน USD/THB เบื้องต้น", uid);
+      await setSetting("usd_exchange_rate_updated_at", new Date().toISOString(), "วันที่อัปเดตอัตราแลกเปลี่ยน", uid);
+      await setSetting("usd_exchange_rate_updated_by_name", ctx.user.name ?? ctx.user.username ?? "admin", "ผู้อัปเดตอัตราแลกเปลี่ยน", uid);
+      return { success: true, rate: input.rate };
+    }),
 });
 
 // ─── Export helper for storage.ts to read DB config ──────────────────────────

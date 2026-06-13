@@ -485,6 +485,9 @@ export async function getUserDashboardSummary(userId: number, companyId?: number
       iouTotalAmount: sql<string>`COALESCE(SUM(CASE WHEN ${expenses.expenseType} = 'iou_advance' THEN ${expenses.amount} ELSE 0 END), 0)`,
       iouClaimedAmount: sql<string>`COALESCE(SUM(CASE WHEN ${expenses.expenseType} = 'iou_advance' AND ${expenses.status} = 'claimed' THEN ${expenses.amount} ELSE 0 END), 0)`,
       iouReimbursedAmount: sql<string>`COALESCE(SUM(CASE WHEN ${expenses.expenseType} = 'iou_advance' AND ${expenses.status} = 'reimbursed' THEN ${expenses.amount} ELSE 0 END), 0)`,
+      // USD expenses that have no THB amount yet
+      pendingUsdAmount: sql<string>`COALESCE(SUM(CASE WHEN ${expenses.foreignCurrency} = 'USD' AND (${expenses.amount} = 0 OR ${expenses.amount} IS NULL) THEN ${expenses.foreignAmount} ELSE 0 END), 0)`,
+      pendingUsdCount: sql<number>`SUM(CASE WHEN ${expenses.foreignCurrency} = 'USD' AND (${expenses.amount} = 0 OR ${expenses.amount} IS NULL) THEN 1 ELSE 0 END)`,
     })
     .from(expenses)
     .where(and(...conditions));
@@ -507,6 +510,9 @@ export async function getAdminDashboardSummary(companyId?: number) {
       reimbursedAmount: sql<string>`COALESCE(SUM(CASE WHEN ${expenses.status} = 'reimbursed' THEN ${expenses.amount} ELSE 0 END), 0)`,
       totalCount: sql<number>`COUNT(*)`,
       iouTotalAmount: sql<string>`COALESCE(SUM(CASE WHEN ${expenses.expenseType} = 'iou_advance' THEN ${expenses.amount} ELSE 0 END), 0)`,
+      // USD expenses that have no THB amount yet
+      pendingUsdAmount: sql<string>`COALESCE(SUM(CASE WHEN ${expenses.foreignCurrency} = 'USD' AND (${expenses.amount} = 0 OR ${expenses.amount} IS NULL) THEN ${expenses.foreignAmount} ELSE 0 END), 0)`,
+      pendingUsdCount: sql<number>`SUM(CASE WHEN ${expenses.foreignCurrency} = 'USD' AND (${expenses.amount} = 0 OR ${expenses.amount} IS NULL) THEN 1 ELSE 0 END)`,
     })
     .from(expenses)
     .where(where);

@@ -185,3 +185,12 @@
 - [x] ExpenseDetail: ปุ่ม "กรอกยอด THB" + dialog เมื่อ foreignCurrency=USD แต่ยังไม่มี THB amount
 - [x] ExpenseList: แสดง USD badge และ "รอยอด THB" สำหรับ expense ที่เป็น USD แต่ยังไม่ระบุ THB
 - [x] เขียน vitest tests สำหรับ USD logic (20 tests passing)
+
+## Feature: ตั้งค่าอัตราแลกเปลี่ยน USD/THB (Admin)
+- [x] Backend: เพิ่ม system_settings key "usd_exchange_rate" (default 36.0)
+- [x] Backend: สร้าง procedure getExchangeRate (public) และ setExchangeRate (admin only)
+- [x] Frontend Admin: เพิ่ม section "อัตราแลกเปลี่ยน USD/THB" ใน Storage Settings
+- [x] Frontend Admin: แสดงอัตราปัจจุบัน + form แก้ไข + วันที่อัปเดตล่าสุด + ชื่อผู้อัปเดต
+- [x] Dashboard backend: pendingUsdAmount + pendingUsdCount ใน summary, คำนวณ estimatedTotal
+- [x] Dashboard frontend: แสดง "ยอดรวม (ประมาณการ)" พร้อม subtitle เมื่อมี pending USD
+- [x] Tests: 13 tests สำหรับ exchange rate logic ผ่านทั้งหมด

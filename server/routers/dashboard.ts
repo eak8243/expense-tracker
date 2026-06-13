@@ -4,7 +4,23 @@ import { getDb } from "../db";
 import { protectedProcedure, router } from "../_core/trpc";
 import { TRPCError } from "@trpc/server";
 import { eq, sql } from "drizzle-orm";
-import { expenses, companies } from "../../drizzle/schema";
+import { expenses, companies, systemSettings } from "../../drizzle/schema";
+
+async function getUsdExchangeRate(): Promise<number> {
+  try {
+    const dbConn = await getDb();
+    if (!dbConn) return 36.0;
+    const rows = await dbConn
+      .select()
+      .from(systemSettings)
+      .where(eq(systemSettings.settingKey, "usd_exchange_rate"))
+      .limit(1);
+    const val = rows[0]?.settingValue;
+    return val ? parseFloat(val) : 36.0;
+  } catch {
+    return 36.0;
+  }
+}
 
 export const dashboardRouter = router({
   // ─── Companies with expense data (for dropdown filter) ──────────────────────────
@@ -35,14 +51,18 @@ export const dashboardRouter = router({
     .input(z.object({ companyId: z.number().optional() }).optional())
     .query(async ({ input, ctx }) => {
       const companyId = input?.companyId;
-      const [summary, byCompany, byCategory, byType, recent] = await Promise.all([
+      const [summary, byCompany, byCategory, byType, recent, usdRate] = await Promise.all([
         db.getUserDashboardSummary(ctx.user.id, companyId),
         db.getExpenseByCompany(ctx.user.id, companyId),
         db.getExpenseByCategory(ctx.user.id, companyId),
         db.getExpenseByType(ctx.user.id, companyId),
         db.getRecentExpenses(ctx.user.id, 5, companyId),
+        getUsdExchangeRate(),
       ]);
-      return { summary, byCompany, byCategory, byType, recent };
+      // Compute estimated total: actual THB + pending USD * exchange rate
+      const pendingUsdThb = parseFloat(summary?.pendingUsdAmount ?? "0") * usdRate;
+      const estimatedTotal = parseFloat(summary?.totalAmount ?? "0") + pendingUsdThb;
+      return { summary, byCompany, byCategory, byType, recent, usdExchangeRate: usdRate, estimatedTotal };
     }),
 
   myMonthlyTrend: protectedProcedure
@@ -59,15 +79,19 @@ export const dashboardRouter = router({
         throw new TRPCError({ code: "FORBIDDEN" });
       }
       const companyId = input?.companyId;
-      const [summary, byCompany, byCategory, byType, byUser, recent] = await Promise.all([
+      const [summary, byCompany, byCategory, byType, byUser, recent, usdRate] = await Promise.all([
         db.getAdminDashboardSummary(companyId),
         db.getExpenseByCompany(undefined, companyId),
         db.getExpenseByCategory(undefined, companyId),
         db.getExpenseByType(undefined, companyId),
         db.getExpenseByUser(),
         db.getRecentExpenses(undefined, 10, companyId),
+        getUsdExchangeRate(),
       ]);
-      return { summary, byCompany, byCategory, byType, byUser, recent };
+      // Compute estimated total: actual THB + pending USD * exchange rate
+      const pendingUsdThb = parseFloat(summary?.pendingUsdAmount ?? "0") * usdRate;
+      const estimatedTotal = parseFloat(summary?.totalAmount ?? "0") + pendingUsdThb;
+      return { summary, byCompany, byCategory, byType, byUser, recent, usdExchangeRate: usdRate, estimatedTotal };
     }),
 
   adminMonthlyTrend: protectedProcedure

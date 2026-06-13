@@ -76,16 +76,26 @@ export default function Dashboard() {
   const isLoading = isAdminOrViewer ? adminLoading : myLoading;
 
   // ─── Derived chart data ───────────────────────────────────────────────────
+  const hasPendingUsd = useMemo(() => {
+    const s = data?.summary as any;
+    return s && parseFloat(s.pendingUsdAmount ?? "0") > 0;
+  }, [data]);
+
   const summaryCards = useMemo(() => {
     if (!data?.summary) return [];
     const s = data.summary as any;
+    const pendingUsdCount = Number(s.pendingUsdCount ?? 0);
+    const usdRate = (data as any).usdExchangeRate ?? 36;
+    const estimatedTotal = (data as any).estimatedTotal ?? parseFloat(s.totalAmount ?? "0");
+    const showEstimated = pendingUsdCount > 0;
     return [
       {
-        title: "ยอดรวมทั้งหมด",
-        value: formatAmount(s.totalAmount),
+        title: showEstimated ? "ยอดรวม (ประมาณการ)" : "ยอดรวมทั้งหมด",
+        value: formatAmount(showEstimated ? estimatedTotal : s.totalAmount),
+        subtitle: showEstimated ? `รวม USD ${pendingUsdCount} รายการ (อัตรา ฿${usdRate.toFixed(2)}/USD)` : undefined,
         icon: Wallet,
-        color: "text-slate-700",
-        bg: "bg-slate-100",
+        color: showEstimated ? "text-orange-700" : "text-slate-700",
+        bg: showEstimated ? "bg-orange-100" : "bg-slate-100",
       },
       {
         title: "รอทำเบิก (ร่าง)",
@@ -214,11 +224,14 @@ export default function Dashboard() {
                       )}
                     </div>
                     <p className="text-xs text-muted-foreground mb-1">{card.title}</p>
-                    <p className="text-xl font-bold tabular-nums text-foreground">
-                      ฿{card.value}
-                    </p>
-                  </CardContent>
-                </Card>
+                     <p className="text-xl font-bold tabular-nums text-foreground">
+                       ฿{card.value}
+                     </p>
+                     {(card as any).subtitle && (
+                       <p className="text-xs text-orange-600 mt-1">{(card as any).subtitle}</p>
+                     )}
+                   </CardContent>
+                 </Card>
               );
             })}
           </div>

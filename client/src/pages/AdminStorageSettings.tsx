@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import {
   HardDrive, Cloud, CheckCircle2, XCircle, Loader2,
-  Eye, EyeOff, AlertCircle, Info, Save, TestTube2,
+  Eye, EyeOff, AlertCircle, Info, Save, TestTube2, DollarSign,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -39,6 +39,17 @@ export default function AdminStorageSettings() {
 
   const { data: settings, isLoading, refetch } = trpc.settings.getStorageSettings.useQuery();
 
+  // Exchange rate state
+  const [exchangeRateInput, setExchangeRateInput] = useState("");
+  const { data: exchangeRateData, refetch: refetchRate } = trpc.settings.getExchangeRate.useQuery();
+  const setExchangeRateMutation = trpc.settings.setExchangeRate.useMutation({
+    onSuccess: (res) => {
+      toast.success(`บันทึกอัตราแลกเปลี่ยน ฿${res.rate.toFixed(2)}/USD เรียบร้อยแล้ว`);
+      refetchRate();
+    },
+    onError: (err) => toast.error(err.message || "บันทึกล้มเหลว"),
+  });
+
   const saveMutation = trpc.settings.saveStorageSettings.useMutation({
     onSuccess: () => {
       toast.success("บันทึกการตั้งค่า Storage เรียบร้อยแล้ว");
@@ -61,6 +72,22 @@ export default function AdminStorageSettings() {
       s3PublicUrlBase: "",
     },
   });
+
+  // Populate exchange rate input from loaded data
+  useEffect(() => {
+    if (exchangeRateData) {
+      setExchangeRateInput(exchangeRateData.rate.toFixed(2));
+    }
+  }, [exchangeRateData]);
+
+  const onSaveExchangeRate = () => {
+    const parsed = parseFloat(exchangeRateInput);
+    if (isNaN(parsed) || parsed <= 0) {
+      toast.error("กรุณากรอกอัตราแลกเปลี่ยนที่ถูกต้อง");
+      return;
+    }
+    setExchangeRateMutation.mutate({ rate: parsed });
+  };
 
   // Populate form from loaded settings
   useEffect(() => {
@@ -410,6 +437,79 @@ export default function AdminStorageSettings() {
             )}
           </>
         )}
+      {/* Exchange Rate Card */}
+      <Card className="border-2">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <DollarSign className="w-5 h-5 text-primary" />
+            อัตราแลกเปลี่ยน USD/THB เบื้องต้น
+          </CardTitle>
+          <CardDescription className="text-xs">
+            ใช้สำหรับคำนวณยอดรวมใน Dashboard เมื่อ expense USD ยังไม่ได้กรอกยอด THB
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Current rate display */}
+          {exchangeRateData && (
+            <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+              <div>
+                <p className="text-sm font-medium">อัตราปัจจุบัน</p>
+                <p className="text-2xl font-bold text-primary">฿{exchangeRateData.rate.toFixed(2)}<span className="text-sm font-normal text-muted-foreground ml-1">/USD</span></p>
+              </div>
+              {exchangeRateData.updatedAt && (
+                <div className="text-right text-xs text-muted-foreground">
+                  <p>อัปเดตล่าสุด</p>
+                  <p>{new Date(exchangeRateData.updatedAt).toLocaleString("th-TH", { dateStyle: "medium", timeStyle: "short" })}</p>
+                  {exchangeRateData.updatedByName && <p>โดย {exchangeRateData.updatedByName}</p>}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Edit form */}
+          <div className="flex items-end gap-3">
+            <div className="flex-1">
+              <Label htmlFor="exchange-rate" className="text-sm mb-1.5 block">
+                อัตราแลกเปลี่ยน (THB ต่อ 1 USD)
+              </Label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">฿</span>
+                <Input
+                  id="exchange-rate"
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  max="999"
+                  className="pl-7"
+                  value={exchangeRateInput}
+                  onChange={(e) => setExchangeRateInput(e.target.value)}
+                  placeholder="36.00"
+                />
+              </div>
+            </div>
+            <Button
+              onClick={onSaveExchangeRate}
+              disabled={setExchangeRateMutation.isPending}
+              className="shrink-0"
+            >
+              {setExchangeRateMutation.isPending ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Save className="w-4 h-4" />
+              )}
+              บันทึก
+            </Button>
+          </div>
+
+          <div className="flex items-start gap-2 p-3 rounded-lg bg-blue-50 border border-blue-200">
+            <Info className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
+            <p className="text-xs text-blue-800">
+              <strong>หมายเหตุ:</strong> อัตรานี้ใช้เป็นค่าประมาณการเท่านั้น ยอดจริงจะใช้ยอด THB ที่กรอกในแต่ละ expense เมื่อมีการกรอกแล้ว
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
       </div>
     </AppLayout>
   );
