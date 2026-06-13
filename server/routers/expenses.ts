@@ -176,7 +176,7 @@ export const expensesRouter = router({
         expenseDate: z.date().optional(),
         categoryId: z.number().nullable().optional(),
         description: z.string().nullable().optional(),
-        amount: z.number().positive().optional(),
+        amount: z.number().nonnegative().optional(), // 0 allowed when foreignCurrency=USD (THB unknown yet)
         currency: z.string().optional(),
         paymentMethodId: z.number().nullable().optional(),
         vendorName: z.string().nullable().optional(),
