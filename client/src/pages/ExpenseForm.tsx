@@ -511,21 +511,6 @@ export default function ExpenseForm() {
                       </div>
                       {(errors as any).foreignAmount && <p className="text-destructive text-xs">{(errors as any).foreignAmount.message}</p>}
                     </div>
-                    <div className="space-y-1.5">
-                      <Label>อัตราแลก (1 USD = ? THB)</Label>
-                      <div className="relative">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">฿</span>
-                        <Input
-                          type="number"
-                          step="any"
-                          min="0"
-                          placeholder="เช่น 36.50"
-                          className="pl-7"
-                          {...register("exchangeRate")}
-                        />
-                      </div>
-                      <p className="text-xs text-muted-foreground">ไม่บังคับ — กรอกภายหลังได้</p>
-                    </div>
                   </div>
                   <div className="space-y-1.5">
                     <Label>ยอด THB (ถ้าทราบแล้ว)</Label>
