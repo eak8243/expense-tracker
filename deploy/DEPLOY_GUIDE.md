@@ -224,3 +224,59 @@ docker compose exec -T db mysql -u expense_user -p expense_tracker < backup_2026
 | Port 3000 ไม่ตอบสนอง | `docker compose ps` ดูว่า container running |
 | Build ล้มเหลว | `docker compose build --no-cache app` |
 | Migration ไม่ผ่าน | รัน SQL ไฟล์ใน `drizzle/migrations/` ตามลำดับ |
+
+---
+
+## การตั้งค่า File Storage
+
+ระบบรองรับ 3 โหมดสำหรับจัดเก็บไฟล์แนบ (ใบเสร็จ, รูปภาพ, PDF):
+
+| โหมด | เหมาะกับ | ข้อดี |
+|---|---|---|
+| **Manus Built-in** | ใช้งานบน Manus Cloud | ไม่ต้องตั้งค่า พร้อมใช้ทันที |
+| **Local Disk** | Deploy on-premise บน server ตัวเอง | ไม่พึ่ง cloud ใดๆ ควบคุมข้อมูล 100% |
+| **Custom S3 / NAS** | มี MinIO, Synology NAS, AWS S3 อยู่แล้ว | ใช้ infrastructure เดิม |
+
+### วิธีเปิดใช้ Local Disk Storage
+
+1. เข้าสู่ระบบด้วย account ที่มีสิทธิ์ Admin
+2. ไปที่เมนู **Admin → ตั้งค่า Storage**
+3. เลือก **Local Disk**
+4. ระบุ path โฟลเดอร์ที่ต้องการ (ค่าเริ่มต้น: `/app/uploads`)
+5. กด **บันทึกการตั้งค่า**
+
+> **สำคัญ:** path ที่ระบุใน Admin Settings ต้องตรงกับ volume mount ใน `docker-compose.yml`
+
+### ตัวอย่าง Volume Mount
+
+**แบบ Named Volume** (ข้อมูลอยู่ใน Docker managed volume):
+```yaml
+services:
+  app:
+    volumes:
+      - app_uploads:/app/uploads   # path ต้องตรงกับที่ตั้งใน Admin Settings
+
+volumes:
+  app_uploads:
+```
+
+**แบบ Bind Mount** (เห็นไฟล์บน host โดยตรง):
+```yaml
+services:
+  app:
+    volumes:
+      - ./uploads:/app/uploads   # ./uploads คือโฟลเดอร์บน host
+```
+
+### Backup ไฟล์แนบ (Local Disk)
+
+```bash
+# Backup ไฟล์แนบทั้งหมด (named volume)
+docker compose exec app tar czf /tmp/uploads_backup.tar.gz /app/uploads
+docker compose cp app:/tmp/uploads_backup.tar.gz ./uploads_backup_$(date +%Y%m%d).tar.gz
+
+# หรือ backup โดยตรงจาก bind mount
+tar czf uploads_backup_$(date +%Y%m%d).tar.gz ./uploads/
+```
+
+แนะนำให้ตั้ง cron job backup ไฟล์แนบควบคู่กับ backup ฐานข้อมูลทุกวัน

@@ -60,7 +60,14 @@ services:
     ports:
       - "3000:3000"
     volumes:
-      - app_uploads:/app/uploads   # สำหรับ local file uploads (ถ้ามี)
+      # ─── Local Disk Storage ──────────────────────────────────────────────────
+      # เมื่อตั้งค่า Storage เป็น "Local Disk" ใน Admin Settings
+      # ไฟล์แนบทั้งหมดจะถูกบันทึกใน /app/uploads ภายใน container
+      # volume นี้ทำให้ข้อมูลคงอยู่แม้ container จะ restart
+      #
+      # หากต้องการเปลี่ยน path ให้แก้ทั้งที่นี่และใน Admin Settings > Storage
+      # ตัวอย่าง bind mount (เห็นไฟล์บน host): ./uploads:/app/uploads
+      - app_uploads:/app/uploads
 
   # ─── Nginx Reverse Proxy (optional แต่แนะนำ) ─────────────────────────────────
   nginx:

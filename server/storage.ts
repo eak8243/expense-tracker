@@ -1,8 +1,10 @@
-// Storage helpers — supports both Manus Built-in (Forge) and Custom S3 (Synology NAS, MinIO, AWS, R2)
+// Storage helpers — supports Manus Built-in (Forge), Local Disk, and Custom S3
 // Priority: DB settings (set via Admin UI) → Manus Built-in Forge fallback
 
 import { ENV } from "./_core/env";
 import { getStorageConfigFromDb } from "./routers/settings";
+import path from "path";
+import fs from "fs/promises";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -15,6 +17,23 @@ function appendHashSuffix(relKey: string): string {
   const lastDot = relKey.lastIndexOf(".");
   if (lastDot === -1) return `${relKey}_${hash}`;
   return `${relKey.slice(0, lastDot)}_${hash}${relKey.slice(lastDot)}`;
+}
+
+// ─── Local Disk helpers ───────────────────────────────────────────────────────
+
+export const LOCAL_DISK_URL_PREFIX = "/local-storage/";
+
+async function localDiskPut(
+  basePath: string,
+  key: string,
+  data: Buffer | Uint8Array | string
+): Promise<{ key: string; url: string }> {
+  const filePath = path.join(basePath, key);
+  // Ensure directory exists
+  await fs.mkdir(path.dirname(filePath), { recursive: true });
+  const buf = typeof data === "string" ? Buffer.from(data) : Buffer.from(data as any);
+  await fs.writeFile(filePath, buf);
+  return { key, url: `${LOCAL_DISK_URL_PREFIX}${key}` };
 }
 
 // ─── Manus Built-in (Forge) helpers ──────────────────────────────────────────
@@ -69,7 +88,7 @@ async function forgePut(
 // ─── Custom S3 helpers ────────────────────────────────────────────────────────
 
 async function customS3Put(
-  cfg: NonNullable<Awaited<ReturnType<typeof getStorageConfigFromDb>>>,
+  cfg: NonNullable<Awaited<ReturnType<typeof getStorageConfigFromDb>>> & { type: "custom_s3" },
   key: string,
   data: Buffer | Uint8Array | string,
   contentType: string
@@ -121,10 +140,15 @@ export async function storagePut(
 ): Promise<{ key: string; url: string }> {
   const key = appendHashSuffix(normalizeKey(relKey));
 
-  // Check if custom S3 is configured in DB
+  // Check if custom storage is configured in DB
   const customCfg = await getStorageConfigFromDb().catch(() => null);
-  if (customCfg) {
-    return customS3Put(customCfg, key, data, contentType);
+
+  if (customCfg?.type === "local_disk") {
+    return localDiskPut(customCfg.localDiskPath ?? "/app/uploads", key, data);
+  }
+
+  if (customCfg?.type === "custom_s3") {
+    return customS3Put(customCfg as any, key, data, contentType);
   }
 
   // Fallback: Manus Built-in Forge storage
@@ -135,7 +159,12 @@ export async function storageGet(relKey: string): Promise<{ key: string; url: st
   const key = normalizeKey(relKey);
 
   const customCfg = await getStorageConfigFromDb().catch(() => null);
-  if (customCfg) {
+
+  if (customCfg?.type === "local_disk") {
+    return { key, url: `${LOCAL_DISK_URL_PREFIX}${key}` };
+  }
+
+  if (customCfg?.type === "custom_s3") {
     const base = customCfg.publicUrlBase
       ? customCfg.publicUrlBase.replace(/\/+$/, "")
       : customCfg.forcePathStyle !== false
@@ -151,7 +180,13 @@ export async function storageGetSignedUrl(relKey: string): Promise<string> {
   const key = normalizeKey(relKey);
 
   const customCfg = await getStorageConfigFromDb().catch(() => null);
-  if (customCfg) {
+
+  if (customCfg?.type === "local_disk") {
+    // Local disk: no signing needed, just return the proxy URL
+    return `${LOCAL_DISK_URL_PREFIX}${key}`;
+  }
+
+  if (customCfg?.type === "custom_s3") {
     const { S3Client, GetObjectCommand } = await import("@aws-sdk/client-s3");
     const { getSignedUrl } = await import("@aws-sdk/s3-request-presigner");
 

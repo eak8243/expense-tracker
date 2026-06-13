@@ -1,6 +1,61 @@
 import type { Express } from "express";
 import { ENV } from "./env";
-export function registerStorageProxy(app: Express) {
+import path from "path";
+import fs from "fs/promises";
+import { createReadStream, existsSync } from "fs";
+import { lookup as mimeLookup } from "mime-types";
+import { getStorageConfigFromDb } from "../routers/settings";
+
+// ─── Local Disk proxy ─────────────────────────────────────────────────────────
+function registerLocalDiskProxy(app: Express) {
+  app.get("/local-storage/*", async (req, res) => {
+    const key = (req.params as Record<string, string>)[0];
+    if (!key) {
+      res.status(400).send("Missing file key");
+      return;
+    }
+
+    try {
+      // Get configured base path from DB
+      const cfg = await getStorageConfigFromDb().catch(() => null);
+      const basePath = cfg?.type === "local_disk" ? (cfg.localDiskPath ?? "/app/uploads") : "/app/uploads";
+      const filePath = path.join(basePath, key);
+
+      // Security: prevent path traversal
+      const resolvedBase = path.resolve(basePath);
+      const resolvedFile = path.resolve(filePath);
+      if (!resolvedFile.startsWith(resolvedBase + path.sep) && resolvedFile !== resolvedBase) {
+        res.status(403).send("Forbidden");
+        return;
+      }
+
+      if (!existsSync(resolvedFile)) {
+        res.status(404).send("File not found");
+        return;
+      }
+
+      const stat = await fs.stat(resolvedFile);
+      const contentType = mimeLookup(resolvedFile) || "application/octet-stream";
+
+      res.set("Content-Type", contentType);
+      res.set("Content-Length", String(stat.size));
+      res.set("Cache-Control", "private, max-age=300");
+      res.set("Access-Control-Allow-Origin", "*");
+
+      const stream = createReadStream(resolvedFile);
+      stream.pipe(res);
+      stream.on("error", () => {
+        if (!res.headersSent) res.status(500).send("Read error");
+      });
+    } catch (err) {
+      console.error("[LocalDiskProxy] failed:", err);
+      if (!res.headersSent) res.status(500).send("Storage error");
+    }
+  });
+}
+
+// ─── Manus Forge proxy ────────────────────────────────────────────────────────
+function registerForgeProxy(app: Express) {
   app.get("/manus-storage/*", async (req, res) => {
     const key = (req.params as Record<string, string>)[0];
     if (!key) {
@@ -33,7 +88,6 @@ export function registerStorageProxy(app: Express) {
       }
 
       // Pipe the file content directly instead of redirecting
-      // This avoids CORS issues on desktop browsers when loading images/PDFs
       const fileResp = await fetch(url);
       if (!fileResp.ok) {
         console.error(`[StorageProxy] S3 fetch error: ${fileResp.status}`);
@@ -41,7 +95,6 @@ export function registerStorageProxy(app: Express) {
         return;
       }
 
-      // Forward content-type and cache headers
       const contentType = fileResp.headers.get("content-type") || "application/octet-stream";
       const contentLength = fileResp.headers.get("content-length");
       res.set("Content-Type", contentType);
@@ -56,7 +109,6 @@ export function registerStorageProxy(app: Express) {
         return;
       }
 
-      // Stream the response body
       const reader = fileResp.body.getReader();
       res.status(200);
       const pump = async () => {
@@ -80,4 +132,10 @@ export function registerStorageProxy(app: Express) {
       }
     }
   });
+}
+
+// ─── Register both proxies ────────────────────────────────────────────────────
+export function registerStorageProxy(app: Express) {
+  registerLocalDiskProxy(app);
+  registerForgeProxy(app);
 }

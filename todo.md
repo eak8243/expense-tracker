@@ -200,3 +200,12 @@
 - [x] แก้ไข ExpenseList.tsx: เปลี่ยนจาก Buffer.from(result.content, 'base64') เป็น atob() + Uint8Array สำหรับ CSV
 - [x] ยืนยัน Excel export ใช้ atob() อยู่แล้ว (ถูกต้อง)
 - [x] 37 tests passing
+
+## Feature: Local Disk Storage (On-Premise)
+- [x] เพิ่ม storage_type "local_disk" ใน settings router (STORAGE_KEYS + saveStorageSettings)
+- [x] เพิ่ม localDiskPut/localDiskGet helpers ใน storage.ts (เก็บไฟล์ใน /app/uploads/ หรือ path ที่ตั้งค่าได้)
+- [x] อัปเดต storageProxy.ts ให้ serve ไฟล์จาก local disk เมื่อ storage_type = local_disk
+- [x] เพิ่ม UI card "Local Disk" ใน AdminStorageSettings.tsx (เลือก 3 ตัวเลือก: Manus Built-in / Local Disk / Custom S3)
+- [x] อัปเดต docker-compose.yml เพิ่ม volume mount สำหรับ /app/uploads
+- [x] อัปเดต DEPLOY_GUIDE.md อธิบาย local disk storage
+- [x] เขียน vitest tests สำหรับ local disk storage logic

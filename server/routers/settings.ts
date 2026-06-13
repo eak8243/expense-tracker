@@ -7,7 +7,8 @@ import { protectedProcedure, router } from "../_core/trpc";
 
 // Storage setting keys
 const STORAGE_KEYS = [
-  "storage_type",        // "builtin" | "custom_s3"
+  "storage_type",        // "builtin" | "local_disk" | "custom_s3"
+  "local_disk_path",     // absolute path for local disk storage (default: /app/uploads)
   "s3_endpoint",
   "s3_region",
   "s3_bucket",
@@ -73,14 +74,6 @@ export const settingsRouter = router({
     const db = await getDb();
     if (!db) return null;
 
-    const rows = await db
-      .select()
-      .from(systemSettings)
-      .where(
-        // fetch all storage_* keys
-        eq(systemSettings.settingKey, "storage_type")
-      );
-
     // Fetch all keys individually
     const result: Record<string, string | null> = {};
     for (const key of STORAGE_KEYS) {
@@ -99,7 +92,8 @@ export const settingsRouter = router({
   saveStorageSettings: adminProcedure
     .input(
       z.object({
-        storageType: z.enum(["builtin", "custom_s3"]),
+        storageType: z.enum(["builtin", "local_disk", "custom_s3"]),
+        localDiskPath: z.string().optional(),
         s3Endpoint: z.string().optional(),
         s3Region: z.string().optional(),
         s3Bucket: z.string().optional(),
@@ -113,6 +107,11 @@ export const settingsRouter = router({
       const uid = ctx.user.id;
 
       await setSetting("storage_type", input.storageType, "ประเภท Storage", uid);
+
+      if (input.storageType === "local_disk") {
+        const diskPath = input.localDiskPath?.trim() || "/app/uploads";
+        await setSetting("local_disk_path", diskPath, "Local Disk Storage Path", uid);
+      }
 
       if (input.storageType === "custom_s3") {
         if (input.s3Endpoint !== undefined)
@@ -226,7 +225,8 @@ export const settingsRouter = router({
 
 // ─── Export helper for storage.ts to read DB config ──────────────────────────
 export async function getStorageConfigFromDb(): Promise<{
-  type: "builtin" | "custom_s3";
+  type: "builtin" | "local_disk" | "custom_s3";
+  localDiskPath?: string;
   endpoint?: string;
   region?: string;
   bucket?: string;
@@ -239,6 +239,15 @@ export async function getStorageConfigFromDb(): Promise<{
     const storageType = await getSetting("storage_type");
     if (!storageType || storageType === "builtin") return null;
 
+    if (storageType === "local_disk") {
+      const localDiskPath = await getSetting("local_disk_path");
+      return {
+        type: "local_disk",
+        localDiskPath: localDiskPath ?? "/app/uploads",
+      };
+    }
+
+    // custom_s3
     const endpoint = await getSetting("s3_endpoint");
     const region = await getSetting("s3_region");
     const bucket = await getSetting("s3_bucket");

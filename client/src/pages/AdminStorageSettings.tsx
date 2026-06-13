@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import {
   HardDrive, Cloud, CheckCircle2, XCircle, Loader2,
-  Eye, EyeOff, AlertCircle, Info, Save, TestTube2, DollarSign,
+  Eye, EyeOff, AlertCircle, Info, Save, TestTube2, DollarSign, FolderOpen,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -28,11 +28,12 @@ const s3Schema = z.object({
 });
 
 type S3FormData = z.infer<typeof s3Schema>;
-
+type StorageType = "builtin" | "local_disk" | "custom_s3";
 type TestResult = { success: boolean; message: string } | null;
 
 export default function AdminStorageSettings() {
-  const [storageType, setStorageType] = useState<"builtin" | "custom_s3">("builtin");
+  const [storageType, setStorageType] = useState<StorageType>("builtin");
+  const [localDiskPath, setLocalDiskPath] = useState("/app/uploads");
   const [showSecret, setShowSecret] = useState(false);
   const [testResult, setTestResult] = useState<TestResult>(null);
   const [isTesting, setIsTesting] = useState(false);
@@ -80,20 +81,12 @@ export default function AdminStorageSettings() {
     }
   }, [exchangeRateData]);
 
-  const onSaveExchangeRate = () => {
-    const parsed = parseFloat(exchangeRateInput);
-    if (isNaN(parsed) || parsed <= 0) {
-      toast.error("กรุณากรอกอัตราแลกเปลี่ยนที่ถูกต้อง");
-      return;
-    }
-    setExchangeRateMutation.mutate({ rate: parsed });
-  };
-
   // Populate form from loaded settings
   useEffect(() => {
     if (settings) {
-      const type = (settings.storage_type as "builtin" | "custom_s3") ?? "builtin";
+      const type = (settings.storage_type as StorageType) ?? "builtin";
       setStorageType(type);
+      if (settings.local_disk_path) setLocalDiskPath(settings.local_disk_path);
       form.reset({
         s3Endpoint: settings.s3_endpoint ?? "",
         s3Region: settings.s3_region ?? "us-east-1",
@@ -106,10 +99,20 @@ export default function AdminStorageSettings() {
     }
   }, [settings]);
 
+  const onSaveExchangeRate = () => {
+    const parsed = parseFloat(exchangeRateInput);
+    if (isNaN(parsed) || parsed <= 0) {
+      toast.error("กรุณากรอกอัตราแลกเปลี่ยนที่ถูกต้อง");
+      return;
+    }
+    setExchangeRateMutation.mutate({ rate: parsed });
+  };
+
   const onSave = (data: S3FormData) => {
     saveMutation.mutate({
       storageType,
       ...(storageType === "custom_s3" ? data : {}),
+      ...(storageType === "local_disk" ? { localDiskPath } : {}),
     });
   };
 
@@ -117,9 +120,12 @@ export default function AdminStorageSettings() {
     saveMutation.mutate({ storageType: "builtin" });
   };
 
+  const onSaveLocalDisk = () => {
+    saveMutation.mutate({ storageType: "local_disk", localDiskPath });
+  };
+
   const onTest = async () => {
     const values = form.getValues();
-    // Validate required fields first
     const valid = await form.trigger(["s3Endpoint", "s3Region", "s3Bucket", "s3AccessKey", "s3SecretKey"]);
     if (!valid) return;
 
@@ -167,8 +173,8 @@ export default function AdminStorageSettings() {
           </div>
         ) : (
           <>
-            {/* Storage Type Selector */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* Storage Type Selector — 3 options */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               {/* Manus Built-in */}
               <button
                 type="button"
@@ -181,13 +187,35 @@ export default function AdminStorageSettings() {
               >
                 <div className="flex items-center gap-2 mb-1">
                   <Cloud className="w-5 h-5 text-primary" />
-                  <span className="font-semibold text-sm">Manus Built-in Storage</span>
+                  <span className="font-semibold text-sm">Manus Built-in</span>
                   {storageType === "builtin" && (
                     <Badge variant="default" className="text-xs ml-auto">ใช้งานอยู่</Badge>
                   )}
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  S3-compatible storage ที่ Manus จัดเตรียมให้ ไม่ต้องตั้งค่าเพิ่มเติม
+                  S3 cloud storage ของ Manus ไม่ต้องตั้งค่า
+                </p>
+              </button>
+
+              {/* Local Disk */}
+              <button
+                type="button"
+                onClick={() => setStorageType("local_disk")}
+                className={`p-4 rounded-xl border-2 text-left transition-all ${
+                  storageType === "local_disk"
+                    ? "border-green-500 bg-green-50/30"
+                    : "border-border hover:border-green-300"
+                }`}
+              >
+                <div className="flex items-center gap-2 mb-1">
+                  <FolderOpen className="w-5 h-5 text-green-600" />
+                  <span className="font-semibold text-sm">Local Disk</span>
+                  {storageType === "local_disk" && (
+                    <Badge variant="secondary" className="text-xs ml-auto border-green-300 text-green-700">ใช้งานอยู่</Badge>
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  เก็บไฟล์ใน server เดียวกัน ไม่ต้องพึ่ง cloud
                 </p>
               </button>
 
@@ -209,7 +237,7 @@ export default function AdminStorageSettings() {
                   )}
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Synology NAS, MinIO, AWS S3, Cloudflare R2 หรือ S3-compatible อื่นๆ
+                  MinIO, Synology NAS, AWS S3, R2
                 </p>
               </button>
             </div>
@@ -231,6 +259,74 @@ export default function AdminStorageSettings() {
                   <div className="mt-4 flex justify-end">
                     <Button
                       onClick={onSaveBuiltin}
+                      disabled={saveMutation.isPending}
+                      className="gap-2"
+                    >
+                      {saveMutation.isPending ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Save className="w-4 h-4" />
+                      )}
+                      บันทึกการตั้งค่า
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Local Disk Form */}
+            {storageType === "local_disk" && (
+              <Card>
+                <CardHeader className="pb-4">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <FolderOpen className="w-4 h-4 text-green-600" />
+                    Local Disk Storage
+                  </CardTitle>
+                  <CardDescription>
+                    ไฟล์แนบทั้งหมดจะถูกบันทึกลงในโฟลเดอร์บน server โดยตรง
+                    เหมาะสำหรับการ deploy แบบ on-premise ที่ไม่ต้องการพึ่งพา cloud storage ภายนอก
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-1.5">
+                    <Label>
+                      โฟลเดอร์จัดเก็บไฟล์ (Absolute Path)
+                    </Label>
+                    <Input
+                      value={localDiskPath}
+                      onChange={(e) => setLocalDiskPath(e.target.value)}
+                      placeholder="/app/uploads"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      ค่าเริ่มต้น: <code className="bg-muted px-1 rounded">/app/uploads</code> — ต้องเป็น path ที่ server มีสิทธิ์เขียน
+                      และควร mount เป็น Docker volume เพื่อให้ข้อมูลคงอยู่หลัง restart
+                    </p>
+                  </div>
+
+                  <div className="flex items-start gap-3 p-3 rounded-lg bg-green-50 border border-green-200">
+                    <CheckCircle2 className="w-4 h-4 text-green-600 mt-0.5 flex-shrink-0" />
+                    <div className="text-sm text-green-800">
+                      <p className="font-medium">ข้อดีของ Local Disk Storage</p>
+                      <ul className="mt-1 text-xs text-green-700 space-y-0.5 list-disc list-inside">
+                        <li>ไม่ต้องพึ่งพา internet หรือ cloud service ภายนอก</li>
+                        <li>ความเร็วในการอ่าน/เขียนไฟล์สูงสุด</li>
+                        <li>ควบคุมข้อมูลได้ 100% ภายในองค์กร</li>
+                        <li>ไม่มีค่าใช้จ่าย storage เพิ่มเติม</li>
+                      </ul>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-50 border border-amber-200">
+                    <AlertCircle className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
+                    <p className="text-xs text-amber-800">
+                      <strong>สำคัญ:</strong> ต้อง mount โฟลเดอร์นี้เป็น Docker volume ใน <code className="bg-amber-100 px-1 rounded">docker-compose.yml</code> เพื่อป้องกันข้อมูลสูญหายเมื่อ container restart
+                      เช่น <code className="bg-amber-100 px-1 rounded">./uploads:/app/uploads</code>
+                    </p>
+                  </div>
+
+                  <div className="flex justify-end">
+                    <Button
+                      onClick={onSaveLocalDisk}
                       disabled={saveMutation.isPending}
                       className="gap-2"
                     >
@@ -437,78 +533,79 @@ export default function AdminStorageSettings() {
             )}
           </>
         )}
-      {/* Exchange Rate Card */}
-      <Card className="border-2">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base flex items-center gap-2">
-            <DollarSign className="w-5 h-5 text-primary" />
-            อัตราแลกเปลี่ยน USD/THB เบื้องต้น
-          </CardTitle>
-          <CardDescription className="text-xs">
-            ใช้สำหรับคำนวณยอดรวมใน Dashboard เมื่อ expense USD ยังไม่ได้กรอกยอด THB
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {/* Current rate display */}
-          {exchangeRateData && (
-            <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
-              <div>
-                <p className="text-sm font-medium">อัตราปัจจุบัน</p>
-                <p className="text-2xl font-bold text-primary">฿{exchangeRateData.rate.toFixed(2)}<span className="text-sm font-normal text-muted-foreground ml-1">/USD</span></p>
-              </div>
-              {exchangeRateData.updatedAt && (
-                <div className="text-right text-xs text-muted-foreground">
-                  <p>อัปเดตล่าสุด</p>
-                  <p>{new Date(exchangeRateData.updatedAt).toLocaleString("th-TH", { dateStyle: "medium", timeStyle: "short" })}</p>
-                  {exchangeRateData.updatedByName && <p>โดย {exchangeRateData.updatedByName}</p>}
+
+        {/* Exchange Rate Card */}
+        <Card className="border-2">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <DollarSign className="w-5 h-5 text-primary" />
+              อัตราแลกเปลี่ยน USD/THB เบื้องต้น
+            </CardTitle>
+            <CardDescription className="text-xs">
+              ใช้สำหรับคำนวณยอดรวมใน Dashboard เมื่อ expense USD ยังไม่ได้กรอกยอด THB
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {/* Current rate display */}
+            {exchangeRateData && (
+              <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+                <div>
+                  <p className="text-sm font-medium">อัตราปัจจุบัน</p>
+                  <p className="text-2xl font-bold text-primary">฿{exchangeRateData.rate.toFixed(2)}<span className="text-sm font-normal text-muted-foreground ml-1">/USD</span></p>
                 </div>
-              )}
-            </div>
-          )}
-
-          {/* Edit form */}
-          <div className="flex items-end gap-3">
-            <div className="flex-1">
-              <Label htmlFor="exchange-rate" className="text-sm mb-1.5 block">
-                อัตราแลกเปลี่ยน (THB ต่อ 1 USD)
-              </Label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">฿</span>
-                <Input
-                  id="exchange-rate"
-                  type="number"
-                  step="0.01"
-                  min="0.01"
-                  max="999"
-                  className="pl-7"
-                  value={exchangeRateInput}
-                  onChange={(e) => setExchangeRateInput(e.target.value)}
-                  placeholder="36.00"
-                />
+                {exchangeRateData.updatedAt && (
+                  <div className="text-right text-xs text-muted-foreground">
+                    <p>อัปเดตล่าสุด</p>
+                    <p>{new Date(exchangeRateData.updatedAt).toLocaleString("th-TH", { dateStyle: "medium", timeStyle: "short" })}</p>
+                    {exchangeRateData.updatedByName && <p>โดย {exchangeRateData.updatedByName}</p>}
+                  </div>
+                )}
               </div>
-            </div>
-            <Button
-              onClick={onSaveExchangeRate}
-              disabled={setExchangeRateMutation.isPending}
-              className="shrink-0"
-            >
-              {setExchangeRateMutation.isPending ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Save className="w-4 h-4" />
-              )}
-              บันทึก
-            </Button>
-          </div>
+            )}
 
-          <div className="flex items-start gap-2 p-3 rounded-lg bg-blue-50 border border-blue-200">
-            <Info className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
-            <p className="text-xs text-blue-800">
-              <strong>หมายเหตุ:</strong> อัตรานี้ใช้เป็นค่าประมาณการเท่านั้น ยอดจริงจะใช้ยอด THB ที่กรอกในแต่ละ expense เมื่อมีการกรอกแล้ว
-            </p>
-          </div>
-        </CardContent>
-      </Card>
+            {/* Edit form */}
+            <div className="flex items-end gap-3">
+              <div className="flex-1">
+                <Label htmlFor="exchange-rate" className="text-sm mb-1.5 block">
+                  อัตราแลกเปลี่ยน (THB ต่อ 1 USD)
+                </Label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">฿</span>
+                  <Input
+                    id="exchange-rate"
+                    type="number"
+                    step="0.01"
+                    min="0.01"
+                    max="999"
+                    className="pl-7"
+                    value={exchangeRateInput}
+                    onChange={(e) => setExchangeRateInput(e.target.value)}
+                    placeholder="36.00"
+                  />
+                </div>
+              </div>
+              <Button
+                onClick={onSaveExchangeRate}
+                disabled={setExchangeRateMutation.isPending}
+                className="shrink-0"
+              >
+                {setExchangeRateMutation.isPending ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Save className="w-4 h-4" />
+                )}
+                บันทึก
+              </Button>
+            </div>
+
+            <div className="flex items-start gap-2 p-3 rounded-lg bg-blue-50 border border-blue-200">
+              <Info className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
+              <p className="text-xs text-blue-800">
+                <strong>หมายเหตุ:</strong> อัตรานี้ใช้เป็นค่าประมาณการเท่านั้น ยอดจริงจะใช้ยอด THB ที่กรอกในแต่ละ expense เมื่อมีการกรอกแล้ว
+              </p>
+            </div>
+          </CardContent>
+        </Card>
 
       </div>
     </AppLayout>
