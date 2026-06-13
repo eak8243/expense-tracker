@@ -89,7 +89,7 @@ export const expensesRouter = router({
         expenseDate: z.date(),
         categoryId: z.number().optional(),
         description: z.string().optional(),
-        amount: z.number().positive(),
+        amount: z.number().nonnegative(), // 0 allowed when foreignCurrency is set (THB unknown yet)
         currency: z.string().default("THB"),
         paymentMethodId: z.number().optional(),
         vendorName: z.string().optional(),
@@ -98,9 +98,20 @@ export const expensesRouter = router({
         iouAmount: z.number().optional(),
         iouNote: z.string().optional(),
         note: z.string().optional(),
+        // Foreign currency (USD)
+        foreignCurrency: z.literal("USD").optional(),
+        foreignAmount: z.number().positive().optional(),
+        exchangeRate: z.number().positive().optional(),
       })
     )
     .mutation(async ({ input, ctx }) => {
+      // Validate: if foreignCurrency=USD, foreignAmount required; amount can be 0
+      if (input.foreignCurrency === "USD" && !input.foreignAmount) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "กรุณาระบุจำนวน USD" });
+      }
+      if (!input.foreignCurrency && input.amount <= 0) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "กรุณาระบุจำนวนเงิน" });
+      }
       // Validate IOU
       if (input.expenseType === "iou_advance" && !input.iouNumber) {
         throw new TRPCError({ code: "BAD_REQUEST", message: "กรุณาระบุเลข IOU สำหรับประเภทเงินทดรองจ่าย" });
@@ -132,6 +143,9 @@ export const expensesRouter = router({
         iouAmount: input.iouAmount ? String(input.iouAmount) : null,
         iouNote: input.iouNote ?? null,
         note: input.note ?? null,
+        foreignCurrency: input.foreignCurrency ?? null,
+        foreignAmount: input.foreignAmount ? String(input.foreignAmount) : null,
+        exchangeRate: input.exchangeRate ? String(input.exchangeRate) : null,
         status: "draft",
       });
 
@@ -171,6 +185,10 @@ export const expensesRouter = router({
         iouAmount: z.number().nullable().optional(),
         iouNote: z.string().nullable().optional(),
         note: z.string().nullable().optional(),
+        // Foreign currency
+        foreignCurrency: z.literal("USD").nullable().optional(),
+        foreignAmount: z.number().positive().nullable().optional(),
+        exchangeRate: z.number().positive().nullable().optional(),
       })
     )
     .mutation(async ({ input, ctx }) => {
@@ -211,12 +229,17 @@ export const expensesRouter = router({
       trackChange("iouAmount", expense.iouAmount, fields.iouAmount !== undefined ? String(fields.iouAmount) : undefined);
       trackChange("iouNote", expense.iouNote, fields.iouNote);
       trackChange("note", expense.note, fields.note);
+      trackChange("foreignCurrency", expense.foreignCurrency, fields.foreignCurrency);
+      trackChange("foreignAmount", expense.foreignAmount, fields.foreignAmount !== undefined ? (fields.foreignAmount !== null ? String(fields.foreignAmount) : null) : undefined);
+      trackChange("exchangeRate", expense.exchangeRate, fields.exchangeRate !== undefined ? (fields.exchangeRate !== null ? String(fields.exchangeRate) : null) : undefined);
 
       if (Object.keys(updateData).length === 0) return { success: true };
 
       // Convert amount fields to string for DB
       if (updateData.amount !== undefined) updateData.amount = String(updateData.amount);
       if (updateData.iouAmount !== undefined && updateData.iouAmount !== null) updateData.iouAmount = String(updateData.iouAmount);
+      if (updateData.foreignAmount !== undefined && updateData.foreignAmount !== null) updateData.foreignAmount = String(updateData.foreignAmount);
+      if (updateData.exchangeRate !== undefined && updateData.exchangeRate !== null) updateData.exchangeRate = String(updateData.exchangeRate);
 
       await db.updateExpense(id, updateData as Parameters<typeof db.updateExpense>[1]);
 

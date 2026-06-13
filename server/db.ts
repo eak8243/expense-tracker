@@ -287,6 +287,8 @@ export async function getExpenses(filters: ExpenseFilters) {
         reimbursedAmount: expenses.reimbursedAmount,
         iouNumber: expenses.iouNumber,
         vendorName: expenses.vendorName,
+        foreignCurrency: expenses.foreignCurrency,
+        foreignAmount: expenses.foreignAmount,
         createdAt: expenses.createdAt,
         updatedAt: expenses.updatedAt,
       })
@@ -336,6 +338,9 @@ export async function getExpenseById(id: number) {
       reimbursedDate: expenses.reimbursedDate,
       reimbursedAmount: expenses.reimbursedAmount,
       note: expenses.note,
+      foreignCurrency: expenses.foreignCurrency,
+      foreignAmount: expenses.foreignAmount,
+      exchangeRate: expenses.exchangeRate,
       createdAt: expenses.createdAt,
       updatedAt: expenses.updatedAt,
     })

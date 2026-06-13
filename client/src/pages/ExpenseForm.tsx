@@ -17,6 +17,7 @@ import {
   Paperclip, X, FileText, ImageIcon, Upload, CheckCircle2, Eye,
 } from "lucide-react";
 import { toast } from "sonner";
+import { Switch } from "@/components/ui/switch";
 
 const formSchema = z.object({
   companyId: z.string().min(1, "กรุณาเลือกบริษัท"),
@@ -25,7 +26,7 @@ const formSchema = z.object({
   expenseDate: z.string().min(1, "กรุณาระบุวันที่"),
   categoryId: z.string().optional(),
   description: z.string().optional(),
-  amount: z.string().min(1, "กรุณาระบุจำนวนเงิน"),
+  amount: z.string().optional(), // optional when isUsd=true and THB unknown
   currency: z.string().min(1).default("THB"),
   paymentMethodId: z.string().optional(),
   vendorName: z.string().optional(),
@@ -34,6 +35,20 @@ const formSchema = z.object({
   iouAmount: z.string().optional(),
   iouNote: z.string().optional(),
   note: z.string().optional(),
+  // USD fields
+  isUsd: z.boolean().optional(),
+  foreignAmount: z.string().optional(),
+  exchangeRate: z.string().optional(),
+}).superRefine((data, ctx) => {
+  if (data.isUsd) {
+    if (!data.foreignAmount || parseFloat(data.foreignAmount) <= 0) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "กรุณาระบุจำนวน USD", path: ["foreignAmount"] });
+    }
+  } else {
+    if (!data.amount || parseFloat(data.amount) <= 0) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "กรุณาระบุจำนวนเงิน", path: ["amount"] });
+    }
+  }
 });
 
 type FormData = z.infer<typeof formSchema>;
@@ -117,6 +132,7 @@ export default function ExpenseForm() {
   });
 
   const expenseType = watch("expenseType");
+  const isUsd = watch("isUsd");
 
   // Populate form when editing
   useEffect(() => {
@@ -143,6 +159,9 @@ export default function ExpenseForm() {
         iouAmount: existingExpense.iouAmount ?? "",
         iouNote: existingExpense.iouNote ?? "",
         note: existingExpense.note ?? "",
+        isUsd: existingExpense.foreignCurrency === "USD",
+        foreignAmount: existingExpense.foreignAmount ?? "",
+        exchangeRate: existingExpense.exchangeRate ?? "",
       });
     }
   }, [existingExpense, reset]);
@@ -253,7 +272,8 @@ export default function ExpenseForm() {
       expenseDate: new Date(data.expenseDate),
       categoryId: data.categoryId ? parseInt(data.categoryId) : undefined,
       description: data.description || undefined,
-      amount: parseFloat(data.amount),
+      // If USD mode: amount = 0 (THB unknown), else parse THB amount
+      amount: data.isUsd ? (data.amount ? parseFloat(data.amount) : 0) : parseFloat(data.amount!),
       currency: data.currency,
       paymentMethodId: data.paymentMethodId ? parseInt(data.paymentMethodId) : undefined,
       vendorName: data.vendorName || undefined,
@@ -262,6 +282,10 @@ export default function ExpenseForm() {
       iouAmount: data.iouAmount ? parseFloat(data.iouAmount) : undefined,
       iouNote: data.iouNote || undefined,
       note: data.note || undefined,
+      // USD fields
+      foreignCurrency: data.isUsd ? ("USD" as const) : undefined,
+      foreignAmount: data.isUsd && data.foreignAmount ? parseFloat(data.foreignAmount) : undefined,
+      exchangeRate: data.isUsd && data.exchangeRate ? parseFloat(data.exchangeRate) : undefined,
     };
 
     try {
@@ -450,43 +474,109 @@ export default function ExpenseForm() {
                 </div>
               </div>
 
-              {/* Amount */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <Label>จำนวนเงิน <span className="text-destructive">*</span></Label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">฿</span>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      placeholder="0.00"
-                      className={`pl-7 ${errors.amount ? "border-destructive" : ""}`}
-                      {...register("amount")}
-                    />
-                  </div>
-                  {errors.amount && <p className="text-destructive text-xs">{errors.amount.message}</p>}
+              {/* USD Toggle */}
+              <div className="flex items-center justify-between p-3 rounded-xl border bg-muted/30">
+                <div>
+                  <p className="text-sm font-medium">จ่ายเป็น USD (ยังไม่ทราบยอด THB)</p>
+                  <p className="text-xs text-muted-foreground">กรอกยอด THB ภายหลังได้เมื่อทราบอัตราแลกเปลี่ยน</p>
                 </div>
-
-                <div className="space-y-1.5">
-                  <Label>สกุลเงิน</Label>
-                  <Select
-                    value={watch("currency") || "THB"}
-                    onValueChange={(v) => setValue("currency", v)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="THB">THB - บาทไทย</SelectItem>
-                      <SelectItem value="USD">USD - ดอลลาร์สหรัฐ</SelectItem>
-                      <SelectItem value="EUR">EUR - ยูโร</SelectItem>
-                      <SelectItem value="JPY">JPY - เยนญี่ปุ่น</SelectItem>
-                      <SelectItem value="SGD">SGD - ดอลลาร์สิงคโปร์</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+                <Switch
+                  checked={!!isUsd}
+                  onCheckedChange={(v) => {
+                    setValue("isUsd", v);
+                    if (!v) {
+                      setValue("foreignAmount", "");
+                      setValue("exchangeRate", "");
+                    }
+                  }}
+                />
               </div>
+
+              {/* Amount fields */}
+              {isUsd ? (
+                <div className="space-y-4 p-4 rounded-xl border border-blue-200 bg-blue-50/40">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <Label>จำนวน USD <span className="text-destructive">*</span></Label>
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-medium">$</span>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          min="0.01"
+                          placeholder="0.00"
+                          className={`pl-7 ${(errors as any).foreignAmount ? "border-destructive" : ""}`}
+                          {...register("foreignAmount")}
+                        />
+                      </div>
+                      {(errors as any).foreignAmount && <p className="text-destructive text-xs">{(errors as any).foreignAmount.message}</p>}
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>อัตราแลก (1 USD = ? THB)</Label>
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">฿</span>
+                        <Input
+                          type="number"
+                          step="0.000001"
+                          min="0"
+                          placeholder="เช่น 36.50"
+                          className="pl-7"
+                          {...register("exchangeRate")}
+                        />
+                      </div>
+                      <p className="text-xs text-muted-foreground">ไม่บังคับ — กรอกภายหลังได้</p>
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>ยอด THB (ถ้าทราบแล้ว)</Label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">฿</span>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        placeholder="สามารถกรอกภายหลังได้"
+                        className="pl-7"
+                        {...register("amount")}
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground">ยอดนี้ใช้เบิกจริงกับบริษัท — ถ้ายังไม่รู้สามารถเว้นว่างไว้ก่อนได้</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <Label>จำนวนเงิน (THB) <span className="text-destructive">*</span></Label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">฿</span>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        placeholder="0.00"
+                        className={`pl-7 ${errors.amount ? "border-destructive" : ""}`}
+                        {...register("amount")}
+                      />
+                    </div>
+                    {errors.amount && <p className="text-destructive text-xs">{errors.amount.message}</p>}
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label>สกุลเงิน</Label>
+                    <Select
+                      value={watch("currency") || "THB"}
+                      onValueChange={(v) => setValue("currency", v)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="THB">THB - บาทไทย</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              )}
 
               {/* Vendor & Description */}
               <div className="space-y-1.5">

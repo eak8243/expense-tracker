@@ -501,8 +501,24 @@ export default function ExpenseList() {
 
                   {/* Amount */}
                   <div className="text-right flex-shrink-0">
-                    <p className="font-bold tabular-nums text-base">฿{formatAmount(expense.amount)}</p>
-                    <p className="text-xs text-muted-foreground">{EXPENSE_TYPE_LABELS[expense.expenseType] ?? expense.expenseType}</p>
+                    {(expense as any).foreignCurrency === "USD" ? (
+                      <>
+                        <p className="font-bold tabular-nums text-base text-blue-700">
+                          ${formatAmount((expense as any).foreignAmount)}
+                          <span className="text-xs font-normal ml-1 text-blue-500">USD</span>
+                        </p>
+                        {(!expense.amount || parseFloat(String(expense.amount)) === 0) ? (
+                          <p className="text-xs text-amber-500 font-medium">รอยอด THB</p>
+                        ) : (
+                          <p className="text-xs text-muted-foreground">฿{formatAmount(expense.amount)}</p>
+                        )}
+                      </>
+                    ) : (
+                      <>
+                        <p className="font-bold tabular-nums text-base">฿{formatAmount(expense.amount)}</p>
+                        <p className="text-xs text-muted-foreground">{EXPENSE_TYPE_LABELS[expense.expenseType] ?? expense.expenseType}</p>
+                      </>
+                    )}
                   </div>
 
                   {!selectMode && (

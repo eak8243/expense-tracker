@@ -90,6 +90,10 @@ export default function ExpenseDetail() {
   const [reimbursedAmount, setReimbursedAmount] = useState("");
   const [reimbursedDialogOpen, setReimbursedDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  // USD THB completion dialog
+  const [thbDialogOpen, setThbDialogOpen] = useState(false);
+  const [thbAmount, setThbAmount] = useState("");
+  const [thbExchangeRate, setThbExchangeRate] = useState("");
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -163,6 +167,18 @@ export default function ExpenseDetail() {
       toast.success("ลบรายการเรียบร้อยแล้ว");
       utils.expenses.list.invalidate();
       navigate("/expenses");
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const updateThbMutation = trpc.expenses.update.useMutation({
+    onSuccess: () => {
+      toast.success("บันทึกยอด THB เรียบร้อยแล้ว");
+      setThbDialogOpen(false);
+      setThbAmount("");
+      setThbExchangeRate("");
+      utils.expenses.getById.invalidate({ id: expenseId });
+      utils.expenses.list.invalidate();
     },
     onError: (err) => toast.error(err.message),
   });
@@ -400,10 +416,57 @@ export default function ExpenseDetail() {
 
                 <Separator />
 
+                {/* USD info card */}
+                {(expense as any).foreignCurrency === "USD" && (
+                  <div className="p-3 rounded-xl border border-blue-200 bg-blue-50/40 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-semibold text-blue-700 uppercase tracking-wide">จ่ายเป็น USD</span>
+                      <span className="text-lg font-bold tabular-nums text-blue-700">
+                        ${formatAmount((expense as any).foreignAmount)}
+                      </span>
+                    </div>
+                    {(expense as any).exchangeRate && (
+                      <div className="flex items-center justify-between text-xs text-muted-foreground">
+                        <span>อัตราแลก</span>
+                        <span>1 USD = ฿{formatAmount((expense as any).exchangeRate)}</span>
+                      </div>
+                    )}
+                    {(!expense.amount || parseFloat(String(expense.amount)) === 0) ? (
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-amber-600 font-medium">ยังไม่ระบุยอด THB</span>
+                        {(expense.status === "draft" || expense.status === "claimed") && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 text-xs gap-1 border-blue-300 text-blue-700 hover:bg-blue-50"
+                            onClick={() => {
+                              setThbAmount("");
+                              setThbExchangeRate((expense as any).exchangeRate ?? "");
+                              setThbDialogOpen(true);
+                            }}
+                          >
+                            <Plus className="w-3 h-3" />
+                            กรอกยอด THB
+                          </Button>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-between text-xs text-muted-foreground">
+                        <span>ยอด THB ที่ใช้เบิก</span>
+                        <span className="font-semibold text-foreground">฿{formatAmount(expense.amount)}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 <div className="flex items-center justify-between">
-                  <p className="text-sm font-medium text-muted-foreground">จำนวนเงิน</p>
+                  <p className="text-sm font-medium text-muted-foreground">ยอดเบิก (THB)</p>
                   <p className="text-2xl font-bold tabular-nums">
-                    ฿{formatAmount(expense.amount)}
+                    {(!expense.amount || parseFloat(String(expense.amount)) === 0) && (expense as any).foreignCurrency === "USD" ? (
+                      <span className="text-amber-500">รอยอด THB</span>
+                    ) : (
+                      <>฿{formatAmount(expense.amount)}</>
+                    )}
                     <span className="text-sm font-normal text-muted-foreground ml-1">{expense.currency}</span>
                   </p>
                 </div>
@@ -701,6 +764,76 @@ export default function ExpenseDetail() {
               disabled={markReimbursedMutation.isPending}
             >
               {markReimbursedMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "ยืนยัน"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* THB Amount Completion Dialog */}
+      <Dialog open={thbDialogOpen} onOpenChange={setThbDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Banknote className="w-5 h-5 text-blue-600" />
+              กรอกยอด THB สำหรับ USD
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              ยอดนี้จะใช้เบิกจริงกับบริษัท — รายการนี้จ่ายเป็น <strong>${formatAmount((expense as any).foreignAmount)} USD</strong>
+            </p>
+            <div className="space-y-1.5">
+              <Label>ยอด THB <span className="text-destructive">*</span></Label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">฿</span>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  placeholder="0.00"
+                  className="pl-7"
+                  value={thbAmount}
+                  onChange={(e) => setThbAmount(e.target.value)}
+                  autoFocus
+                />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label>อัตราแลก (1 USD = ? THB)</Label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">฿</span>
+                <Input
+                  type="number"
+                  step="0.000001"
+                  min="0"
+                  placeholder="เช่น 36.50"
+                  className="pl-7"
+                  value={thbExchangeRate}
+                  onChange={(e) => setThbExchangeRate(e.target.value)}
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">ไม่บังคับ</p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setThbDialogOpen(false)}>
+              ยกเลิก
+            </Button>
+            <Button
+              onClick={() => {
+                if (!thbAmount || parseFloat(thbAmount) <= 0) {
+                  toast.error("กรุณาระบุยอด THB");
+                  return;
+                }
+                updateThbMutation.mutate({
+                  id: expenseId,
+                  amount: parseFloat(thbAmount),
+                  exchangeRate: thbExchangeRate ? parseFloat(thbExchangeRate) : undefined,
+                });
+              }}
+              disabled={updateThbMutation.isPending}
+            >
+              {updateThbMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "บันทึกยอด THB"}
             </Button>
           </DialogFooter>
         </DialogContent>

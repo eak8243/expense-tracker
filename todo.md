@@ -174,3 +174,14 @@
 - [x] Frontend: หน้า BatchList (/batches) แสดงรายการ batch ทั้งหมด พร้อมลิงก์ไปดูรายละเอียด
 - [x] Frontend: หน้า BatchDetail (/batches/:id) แสดงรายละเอียด batch พร้อม expense items
 - [x] เขียน vitest tests สำหรับ batch router (10 tests passed)
+
+## Feature: ค่าใช้จ่ายสกุล USD
+- [x] เพิ่ม fields ใน expenses table: foreignCurrency (varchar), foreignAmount (decimal), exchangeRate (decimal)
+- [x] Generate migration SQL และ apply ผ่าน webdev_execute_sql
+- [x] Backend: อัปเดต createExpense/updateExpense รับ foreignCurrency, foreignAmount, exchangeRate
+- [x] Backend: update mutation รองรับการอัปเดต THB amount ภายหลัง
+- [x] ExpenseForm: เพิ่ม toggle "จ่ายเป็น USD" — เมื่อเปิด ช่อง amount (THB) เป็น optional, เพิ่มช่อง USD amount + exchange rate
+- [x] ExpenseDetail: แสดง USD info card (ยอด USD, อัตราแลก, ยอด THB)
+- [x] ExpenseDetail: ปุ่ม "กรอกยอด THB" + dialog เมื่อ foreignCurrency=USD แต่ยังไม่มี THB amount
+- [x] ExpenseList: แสดง USD badge และ "รอยอด THB" สำหรับ expense ที่เป็น USD แต่ยังไม่ระบุ THB
+- [x] เขียน vitest tests สำหรับ USD logic (20 tests passing)

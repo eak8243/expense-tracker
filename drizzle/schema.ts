@@ -110,6 +110,10 @@ export const expenses = mysqlTable(
     reimbursedDate: timestamp("reimbursedDate"),
     reimbursedAmount: decimal("reimbursedAmount", { precision: 15, scale: 2 }),
     note: text("note"),
+    // Foreign currency fields (e.g. USD)
+    foreignCurrency: varchar("foreignCurrency", { length: 8 }), // e.g. "USD" — null means THB only
+    foreignAmount: decimal("foreignAmount", { precision: 15, scale: 2 }), // amount in foreign currency
+    exchangeRate: decimal("exchangeRate", { precision: 15, scale: 6 }), // 1 USD = X THB
     createdAt: timestamp("createdAt").defaultNow().notNull(),
     updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
   },
