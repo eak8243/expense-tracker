@@ -25,6 +25,7 @@ import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
 import { format } from "date-fns";
 import { th } from "date-fns/locale";
+import { formatAmount } from "@/lib/utils";
 
 interface SelectedExpense {
   id: number;
@@ -40,15 +41,6 @@ interface BatchReimbursementModalProps {
   onClose: () => void;
   selectedExpenses: SelectedExpense[];
   onSuccess: () => void;
-}
-
-function formatAmount(v: string | number | null | undefined) {
-  if (v === null || v === undefined) return "0.00";
-  const n = typeof v === "string" ? parseFloat(v) : v;
-  return new Intl.NumberFormat("th-TH", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(n);
 }
 
 export function BatchReimbursementModal({

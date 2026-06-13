@@ -21,12 +21,7 @@ import {
 } from "recharts";
 import { Users, TrendingUp, Clock, CheckCircle2, Download, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
-
-function formatAmount(v: number | string | null | undefined) {
-  if (v === null || v === undefined) return "0";
-  const n = typeof v === "string" ? parseFloat(v) : v;
-  return new Intl.NumberFormat("th-TH", { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(n);
-}
+import { formatAmount } from "@/lib/utils";
 
 const COLORS = ["#6366f1", "#f59e0b", "#10b981", "#ef4444", "#3b82f6", "#8b5cf6"];
 

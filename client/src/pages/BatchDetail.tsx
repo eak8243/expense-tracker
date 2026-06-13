@@ -31,15 +31,7 @@ import {
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { th } from "date-fns/locale";
-
-function formatAmount(v: string | number | null | undefined) {
-  if (v === null || v === undefined) return "0.00";
-  const n = typeof v === "string" ? parseFloat(v) : v;
-  return new Intl.NumberFormat("th-TH", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(n);
-}
+import { formatAmount } from "@/lib/utils";
 
 function formatDate(d: Date | string | null | undefined) {
   if (!d) return "—";

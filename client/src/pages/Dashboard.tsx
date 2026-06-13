@@ -38,12 +38,7 @@ import {
   AlertCircle,
   Building2,
 } from "lucide-react";
-
-function formatAmount(amount: string | number | null | undefined): string {
-  if (amount === null || amount === undefined || amount === "") return "0.00";
-  const num = typeof amount === "string" ? parseFloat(amount) : amount;
-  return new Intl.NumberFormat("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(num);
-}
+import { formatAmount } from "@/lib/utils";
 
 const COLORS = ["#0d9488", "#3b82f6", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899"];
 
