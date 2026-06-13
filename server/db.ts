@@ -878,7 +878,7 @@ export async function getExpenseBatch(expenseId: number) {
     .where(eq(expenseBatchItems.expenseId, expenseId))
     .limit(1);
 
-  return item[0];
+  return item[0] ?? null;
 }
 
 export async function deleteReimbursementBatch(id: number) {

@@ -149,8 +149,9 @@ export const batchesRouter = router({
   getByExpenseId: protectedProcedure
     .input(z.object({ expenseId: z.number() }))
     .query(async ({ ctx, input }) => {
+      // Return null gracefully if expense doesn't exist (avoids "data is undefined" client error)
       const expense = await db.getExpenseById(input.expenseId);
-      if (!expense) throw new TRPCError({ code: "NOT_FOUND" });
+      if (!expense) return null;
       if (ctx.user.role === "user" && expense.userId !== ctx.user.id) {
         throw new TRPCError({ code: "FORBIDDEN" });
       }
