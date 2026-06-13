@@ -501,9 +501,8 @@ export default function ExpenseForm() {
                       <div className="relative">
                         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-medium">$</span>
                         <Input
-                          type="number"
-                          step="any"
-                          min="0"
+                          type="text"
+                          inputMode="decimal"
                           placeholder="0"
                           className={`pl-7 ${(errors as any).foreignAmount ? "border-destructive" : ""}`}
                           {...register("foreignAmount")}
@@ -517,9 +516,8 @@ export default function ExpenseForm() {
                     <div className="relative">
                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">฿</span>
                       <Input
-                        type="number"
-                        step="any"
-                        min="0"
+                        type="text"
+                        inputMode="decimal"
                         placeholder="สามารถกรอกภายหลังได้"
                         className="pl-7"
                         {...register("amount")}
@@ -535,9 +533,8 @@ export default function ExpenseForm() {
                     <div className="relative">
                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">฿</span>
                       <Input
-                        type="number"
-                        step="any"
-                        min="0"
+                        type="text"
+                        inputMode="decimal"
                         placeholder="0.00"
                         className={`pl-7 ${errors.amount ? "border-destructive" : ""}`}
                         {...register("amount")}
@@ -609,9 +606,8 @@ export default function ExpenseForm() {
                   <div className="relative">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">฿</span>
                     <Input
-                      type="number"
-                      step="any"
-                      min="0"
+                      type="text"
+                      inputMode="decimal"
                       placeholder="0.00"
                       className="pl-7"
                       {...register("iouAmount")}
