@@ -502,9 +502,9 @@ export default function ExpenseForm() {
                         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-medium">$</span>
                         <Input
                           type="number"
-                          step="0.01"
-                          min="0.01"
-                          placeholder="0.00"
+                          step="any"
+                          min="0"
+                          placeholder="0"
                           className={`pl-7 ${(errors as any).foreignAmount ? "border-destructive" : ""}`}
                           {...register("foreignAmount")}
                         />
@@ -517,7 +517,7 @@ export default function ExpenseForm() {
                         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">฿</span>
                         <Input
                           type="number"
-                          step="0.000001"
+                          step="any"
                           min="0"
                           placeholder="เช่น 36.50"
                           className="pl-7"
@@ -533,7 +533,7 @@ export default function ExpenseForm() {
                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">฿</span>
                       <Input
                         type="number"
-                        step="0.01"
+                        step="any"
                         min="0"
                         placeholder="สามารถกรอกภายหลังได้"
                         className="pl-7"
@@ -551,7 +551,7 @@ export default function ExpenseForm() {
                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">฿</span>
                       <Input
                         type="number"
-                        step="0.01"
+                        step="any"
                         min="0"
                         placeholder="0.00"
                         className={`pl-7 ${errors.amount ? "border-destructive" : ""}`}
@@ -625,7 +625,7 @@ export default function ExpenseForm() {
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">฿</span>
                     <Input
                       type="number"
-                      step="0.01"
+                      step="any"
                       min="0"
                       placeholder="0.00"
                       className="pl-7"
