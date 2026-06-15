@@ -193,6 +193,98 @@ describe("expenses.update USD THB completion", () => {
   });
 });
 
+describe("expenses.update — categoryId/paymentMethodId null handling", () => {
+  beforeEach(async () => {
+    const db = await import("./db");
+    vi.mocked(db.getExpenseById).mockResolvedValue({
+      id: 10,
+      userId: 1,
+      status: "claimed", // expense ที่ทำเบิกแล้ว
+      expenseType: "normal_expense",
+      itemName: "Office Supplies",
+      amount: "500",
+      currency: "THB",
+      foreignCurrency: null,
+      foreignAmount: null,
+      exchangeRate: null,
+      iouNumber: null,
+      companyId: 1,
+      expenseDate: new Date(),
+      categoryId: 2,
+      paymentMethodId: 3,
+      description: "some desc",
+      vendorName: null,
+      iouDate: null,
+      iouAmount: null,
+      iouNote: null,
+      note: null,
+    });
+    vi.mocked(db.updateExpense).mockResolvedValue(undefined);
+    vi.mocked(db.createHistoryLog).mockResolvedValue(undefined);
+  });
+
+  it("เปลี่ยน categoryId จาก 2 เป็น 5 ใน expense ที่ claimed", async () => {
+    const ctx = createUserContext();
+    const caller = appRouter.createCaller(ctx);
+    const result = await caller.expenses.update({ id: 10, categoryId: 5 });
+    expect(result).toHaveProperty("success", true);
+    const db = await import("./db");
+    expect(vi.mocked(db.updateExpense)).toHaveBeenCalledWith(
+      10,
+      expect.objectContaining({ categoryId: 5 })
+    );
+  });
+
+  it("เปลี่ยน paymentMethodId เป็น null (ไม่ระบุ) ใน expense ที่ claimed", async () => {
+    const ctx = createUserContext();
+    const caller = appRouter.createCaller(ctx);
+    const result = await caller.expenses.update({ id: 10, paymentMethodId: null });
+    expect(result).toHaveProperty("success", true);
+    const db = await import("./db");
+    expect(vi.mocked(db.updateExpense)).toHaveBeenCalledWith(
+      10,
+      expect.objectContaining({ paymentMethodId: null })
+    );
+  });
+
+  it("ไม่อัปเดตเมื่อไม่มีการเปลี่ยนแปลง", async () => {
+    const db = await import("./db");
+    vi.mocked(db.updateExpense).mockClear(); // reset call count before this test
+    const ctx = createUserContext();
+    const caller = appRouter.createCaller(ctx);
+    const result = await caller.expenses.update({ id: 10, categoryId: 2, paymentMethodId: 3 });
+    expect(result).toHaveProperty("success", true);
+    // updateExpense ไม่ควรถูกเรียกเพราะไม่มีอะไรเปลี่ยน
+    expect(vi.mocked(db.updateExpense)).not.toHaveBeenCalled();
+  });
+
+  it("ไม่อนุญาตแก้ไข expense ที่ reimbursed", async () => {
+    const db = await import("./db");
+    vi.mocked(db.getExpenseById).mockResolvedValueOnce({
+      id: 10,
+      userId: 1,
+      status: "reimbursed",
+      expenseType: "normal_expense",
+      itemName: "Office Supplies",
+      amount: "500",
+      currency: "THB",
+      foreignCurrency: null,
+      foreignAmount: null,
+      exchangeRate: null,
+      iouNumber: null,
+      companyId: 1,
+      expenseDate: new Date(),
+      categoryId: 2,
+      paymentMethodId: 3,
+    });
+    const ctx = createUserContext();
+    const caller = appRouter.createCaller(ctx);
+    await expect(
+      caller.expenses.update({ id: 10, categoryId: 5 })
+    ).rejects.toThrow();
+  });
+});
+
 describe("auth.me", () => {
   it("returns user when authenticated", async () => {
     const ctx = createUserContext();

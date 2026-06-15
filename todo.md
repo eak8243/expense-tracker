@@ -209,3 +209,8 @@
 - [x] อัปเดต docker-compose.yml เพิ่ม volume mount สำหรับ /app/uploads
 - [x] อัปเดต DEPLOY_GUIDE.md อธิบาย local disk storage
 - [x] เขียน vitest tests สำหรับ local disk storage logic
+
+## Bug Fix: แก้ไข categoryId/paymentMethodId ไม่บันทึกเมื่อ expense เป็น claimed
+- [x] แก้ trackChange ใน backend ให้รองรับ null vs undefined อย่างถูกต้อง
+- [x] แก้ frontend payload ให้ส่ง null แทน undefined เมื่อ user เลือก "ไม่ระบุ"
+- [x] เขียน test ครอบคลุม case นี้ (49 tests passing)

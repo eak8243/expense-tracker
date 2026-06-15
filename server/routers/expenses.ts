@@ -87,11 +87,11 @@ export const expensesRouter = router({
         expenseType: z.enum(["normal_expense", "iou_advance"]).default("normal_expense"),
         itemName: z.string().min(1).max(255),
         expenseDate: z.date(),
-        categoryId: z.number().optional(),
-        description: z.string().optional(),
+        categoryId: z.number().nullable().optional(),
+        description: z.string().nullable().optional(),
         amount: z.number().nonnegative(), // 0 allowed when foreignCurrency is set (THB unknown yet)
         currency: z.string().default("THB"),
-        paymentMethodId: z.number().optional(),
+        paymentMethodId: z.number().nullable().optional(),
         vendorName: z.string().optional(),
         iouNumber: z.string().optional(),
         iouDate: z.date().optional(),
@@ -204,34 +204,43 @@ export const expensesRouter = router({
       }
 
       // Track changed fields
+      // Use UNSET sentinel to distinguish "field not sent" from "field explicitly set to null"
+      const UNSET = Symbol("UNSET");
       const changedFields: Array<{ field: string; old: string; new: string }> = [];
       const updateData: Record<string, unknown> = {};
 
+      const normalise = (v: unknown): string => {
+        if (v === null || v === undefined) return "";
+        return String(v);
+      };
+
       const trackChange = (field: string, oldVal: unknown, newVal: unknown) => {
-        if (newVal !== undefined && String(oldVal ?? "") !== String(newVal ?? "")) {
-          changedFields.push({ field, old: String(oldVal ?? ""), new: String(newVal ?? "") });
-          updateData[field] = newVal;
+        if (newVal === UNSET) return; // field was not included in the request — skip
+        if (normalise(oldVal) !== normalise(newVal)) {
+          changedFields.push({ field, old: normalise(oldVal), new: normalise(newVal) });
+          updateData[field] = newVal; // preserve null so DB clears the column
         }
       };
 
-      trackChange("itemName", expense.itemName, fields.itemName);
-      trackChange("companyId", expense.companyId, fields.companyId);
-      trackChange("expenseType", expense.expenseType, fields.expenseType);
-      trackChange("expenseDate", expense.expenseDate, fields.expenseDate);
-      trackChange("categoryId", expense.categoryId, fields.categoryId);
-      trackChange("description", expense.description, fields.description);
-      trackChange("amount", expense.amount, fields.amount !== undefined ? String(fields.amount) : undefined);
-      trackChange("currency", expense.currency, fields.currency);
-      trackChange("paymentMethodId", expense.paymentMethodId, fields.paymentMethodId);
-      trackChange("vendorName", expense.vendorName, fields.vendorName);
-      trackChange("iouNumber", expense.iouNumber, fields.iouNumber);
-      trackChange("iouDate", expense.iouDate, fields.iouDate);
-      trackChange("iouAmount", expense.iouAmount, fields.iouAmount !== undefined ? String(fields.iouAmount) : undefined);
-      trackChange("iouNote", expense.iouNote, fields.iouNote);
-      trackChange("note", expense.note, fields.note);
-      trackChange("foreignCurrency", expense.foreignCurrency, fields.foreignCurrency);
-      trackChange("foreignAmount", expense.foreignAmount, fields.foreignAmount !== undefined ? (fields.foreignAmount !== null ? String(fields.foreignAmount) : null) : undefined);
-      trackChange("exchangeRate", expense.exchangeRate, fields.exchangeRate !== undefined ? (fields.exchangeRate !== null ? String(fields.exchangeRate) : null) : undefined);
+      trackChange("itemName", expense.itemName, fields.itemName ?? UNSET);
+      trackChange("companyId", expense.companyId, fields.companyId ?? UNSET);
+      trackChange("expenseType", expense.expenseType, fields.expenseType ?? UNSET);
+      trackChange("expenseDate", expense.expenseDate, fields.expenseDate ?? UNSET);
+      // categoryId and paymentMethodId can be explicitly set to null ("ไม่ระบุ")
+      trackChange("categoryId", expense.categoryId, "categoryId" in fields ? (fields.categoryId ?? null) : UNSET);
+      trackChange("description", expense.description, "description" in fields ? (fields.description ?? null) : UNSET);
+      trackChange("amount", expense.amount, fields.amount !== undefined ? String(fields.amount) : UNSET);
+      trackChange("currency", expense.currency, fields.currency ?? UNSET);
+      trackChange("paymentMethodId", expense.paymentMethodId, "paymentMethodId" in fields ? (fields.paymentMethodId ?? null) : UNSET);
+      trackChange("vendorName", expense.vendorName, "vendorName" in fields ? (fields.vendorName ?? null) : UNSET);
+      trackChange("iouNumber", expense.iouNumber, "iouNumber" in fields ? (fields.iouNumber ?? null) : UNSET);
+      trackChange("iouDate", expense.iouDate, "iouDate" in fields ? (fields.iouDate ?? null) : UNSET);
+      trackChange("iouAmount", expense.iouAmount, fields.iouAmount !== undefined ? (fields.iouAmount !== null ? String(fields.iouAmount) : null) : UNSET);
+      trackChange("iouNote", expense.iouNote, "iouNote" in fields ? (fields.iouNote ?? null) : UNSET);
+      trackChange("note", expense.note, "note" in fields ? (fields.note ?? null) : UNSET);
+      trackChange("foreignCurrency", expense.foreignCurrency, "foreignCurrency" in fields ? (fields.foreignCurrency ?? null) : UNSET);
+      trackChange("foreignAmount", expense.foreignAmount, fields.foreignAmount !== undefined ? (fields.foreignAmount !== null ? String(fields.foreignAmount) : null) : UNSET);
+      trackChange("exchangeRate", expense.exchangeRate, fields.exchangeRate !== undefined ? (fields.exchangeRate !== null ? String(fields.exchangeRate) : null) : UNSET);
 
       if (Object.keys(updateData).length === 0) return { success: true };
 

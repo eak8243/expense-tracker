@@ -270,12 +270,13 @@ export default function ExpenseForm() {
       expenseType: data.expenseType,
       itemName: data.itemName,
       expenseDate: new Date(data.expenseDate),
-      categoryId: data.categoryId ? parseInt(data.categoryId) : undefined,
-      description: data.description || undefined,
+      // Send null (not undefined) so backend can clear the column when user picks "ไม่ระบุ"
+      categoryId: data.categoryId ? parseInt(data.categoryId) : null,
+      description: data.description || null,
       // If USD mode: amount = 0 (THB unknown), else parse THB amount
       amount: data.isUsd ? (data.amount ? parseFloat(data.amount) : 0) : parseFloat(data.amount!),
       currency: data.currency,
-      paymentMethodId: data.paymentMethodId ? parseInt(data.paymentMethodId) : undefined,
+      paymentMethodId: data.paymentMethodId ? parseInt(data.paymentMethodId) : null,
       vendorName: data.vendorName || undefined,
       iouNumber: data.iouNumber || undefined,
       iouDate: data.iouDate ? new Date(data.iouDate) : undefined,
