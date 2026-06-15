@@ -214,3 +214,12 @@
 - [x] แก้ trackChange ใน backend ให้รองรับ null vs undefined อย่างถูกต้อง
 - [x] แก้ frontend payload ให้ส่ง null แทน undefined เมื่อ user เลือก "ไม่ระบุ"
 - [x] เขียน test ครอบคลุม case นี้ (49 tests passing)
+
+## Feature: เลือกวันที่ทำเบิกเมื่อเปลี่ยนสถานะเป็น claimed
+- [x] เพิ่ม claimedDate column ใน drizzle/schema.ts (มี claimDate อยู่แล้ว)
+- [x] รัน migration SQL เพิ่ม column ใน DB (ไม่ต้อง migrate เพิ่มเติม)
+- [x] อัปเดต markClaimed procedure ให้รับ claimDate จาก input
+- [x] อัปเดต getExpenses/getExpenseById ให้ return claimedDate (มีอยู่แล้ว)
+- [x] เพิ่ม date picker dialog ใน ExpenseDetail เมื่อกดปุ่ม "ทำเบิกแล้ว"
+- [x] แสดง claimedDate ใน ExpenseDetail (มีอยู่แล้ว)
+- [x] เขียน tests ครอบคลุม (52 tests passing)

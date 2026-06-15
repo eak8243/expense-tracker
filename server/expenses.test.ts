@@ -193,6 +193,83 @@ describe("expenses.update USD THB completion", () => {
   });
 });
 
+describe("expenses.markClaimed — custom claimDate", () => {
+  beforeEach(async () => {
+    const db = await import("./db");
+    vi.mocked(db.getExpenseById).mockResolvedValue({
+      id: 20,
+      userId: 1,
+      status: "draft",
+      expenseType: "normal_expense",
+      itemName: "Office Supplies",
+      amount: "500",
+      currency: "THB",
+      foreignCurrency: null,
+      foreignAmount: null,
+      exchangeRate: null,
+      iouNumber: null,
+      companyId: 1,
+      expenseDate: new Date(),
+      categoryId: null,
+      paymentMethodId: null,
+    });
+    vi.mocked(db.updateExpense).mockClear();
+    vi.mocked(db.updateExpense).mockResolvedValue(undefined);
+    vi.mocked(db.createHistoryLog).mockResolvedValue(undefined);
+  });
+
+  it("ใช้วันที่ที่ระบุเมื่อส่ง claimDate", async () => {
+    const ctx = createUserContext();
+    const caller = appRouter.createCaller(ctx);
+    const customDate = new Date("2026-06-01T00:00:00.000Z");
+    const result = await caller.expenses.markClaimed({ id: 20, claimDate: customDate });
+    expect(result).toHaveProperty("success", true);
+    const db = await import("./db");
+    expect(vi.mocked(db.updateExpense)).toHaveBeenCalledWith(
+      20,
+      expect.objectContaining({ status: "claimed", claimDate: customDate })
+    );
+  });
+
+  it("ใช้วันปัจจุบันเมื่อไม่ระบุ claimDate", async () => {
+    const ctx = createUserContext();
+    const caller = appRouter.createCaller(ctx);
+    const before = new Date();
+    const result = await caller.expenses.markClaimed({ id: 20 });
+    const after = new Date();
+    expect(result).toHaveProperty("success", true);
+    const db = await import("./db");
+    const callArg = vi.mocked(db.updateExpense).mock.calls[0][1] as any;
+    expect(callArg.status).toBe("claimed");
+    expect(callArg.claimDate.getTime()).toBeGreaterThanOrEqual(before.getTime());
+    expect(callArg.claimDate.getTime()).toBeLessThanOrEqual(after.getTime());
+  });
+
+  it("ไม่อนุญาตเปลี่ยนสถานะจาก claimed เป็น claimed", async () => {
+    const db = await import("./db");
+    vi.mocked(db.getExpenseById).mockResolvedValueOnce({
+      id: 20,
+      userId: 1,
+      status: "claimed",
+      expenseType: "normal_expense",
+      itemName: "Office Supplies",
+      amount: "500",
+      currency: "THB",
+      foreignCurrency: null,
+      foreignAmount: null,
+      exchangeRate: null,
+      iouNumber: null,
+      companyId: 1,
+      expenseDate: new Date(),
+    });
+    const ctx = createUserContext();
+    const caller = appRouter.createCaller(ctx);
+    await expect(
+      caller.expenses.markClaimed({ id: 20, claimDate: new Date() })
+    ).rejects.toThrow();
+  });
+});
+
 describe("expenses.update — categoryId/paymentMethodId null handling", () => {
   beforeEach(async () => {
     const db = await import("./db");

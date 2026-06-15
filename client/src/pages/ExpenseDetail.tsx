@@ -84,6 +84,10 @@ export default function ExpenseDetail() {
   const [uploadType, setUploadType] = useState<"expense_proof" | "reimbursement_proof" | "iou_document">("expense_proof");
   const [reimbursedAmount, setReimbursedAmount] = useState("");
   const [reimbursedDialogOpen, setReimbursedDialogOpen] = useState(false);
+  // Claim date dialog
+  const [claimDialogOpen, setClaimDialogOpen] = useState(false);
+  const today = new Date().toISOString().split("T")[0];
+  const [claimDateInput, setClaimDateInput] = useState(today);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   // USD THB completion dialog
   const [thbDialogOpen, setThbDialogOpen] = useState(false);
@@ -321,7 +325,10 @@ export default function ExpenseDetail() {
                   <Button
                     size="sm"
                     className="gap-1.5 bg-blue-600 hover:bg-blue-500"
-                    onClick={() => markClaimedMutation.mutate({ id: expenseId })}
+                    onClick={() => {
+                      setClaimDateInput(new Date().toISOString().split("T")[0]);
+                      setClaimDialogOpen(true);
+                    }}
                     disabled={markClaimedMutation.isPending}
                   >
                     <FileCheck className="w-3.5 h-3.5" />
@@ -713,6 +720,49 @@ export default function ExpenseDetail() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setUploadDialogOpen(false)}>
               ยกเลิก
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Claim Date Dialog */}
+      <Dialog open={claimDialogOpen} onOpenChange={setClaimDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileCheck className="w-5 h-5 text-blue-600" />
+              ยืนยันการทำเบิก
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              ระบุวันที่ที่ยื่นเอกสารเบิกค่าใช้จ่าย
+            </p>
+            <div className="space-y-1.5">
+              <Label htmlFor="claimDateInput">วันที่ทำเบิก</Label>
+              <Input
+                id="claimDateInput"
+                type="date"
+                value={claimDateInput}
+                onChange={(e) => setClaimDateInput(e.target.value)}
+                max={new Date().toISOString().split("T")[0]}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setClaimDialogOpen(false)}>
+              ยกเลิก
+            </Button>
+            <Button
+              className="bg-blue-600 hover:bg-blue-500"
+              onClick={() => {
+                const d = claimDateInput ? new Date(claimDateInput) : new Date();
+                markClaimedMutation.mutate({ id: expenseId, claimDate: d });
+                setClaimDialogOpen(false);
+              }}
+              disabled={markClaimedMutation.isPending || !claimDateInput}
+            >
+              {markClaimedMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "ยืนยันทำเบิก"}
             </Button>
           </DialogFooter>
         </DialogContent>

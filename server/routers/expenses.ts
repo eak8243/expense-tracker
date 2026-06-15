@@ -281,7 +281,10 @@ export const expensesRouter = router({
 
   // ─── Mark Claimed ──────────────────────────────────────────────────────────
   markClaimed: protectedProcedure
-    .input(z.object({ id: z.number() }))
+    .input(z.object({
+      id: z.number(),
+      claimDate: z.date().optional(), // วันที่ทำเบิก — ถ้าไม่ระบุใช้วันปัจจุบัน
+    }))
     .mutation(async ({ input, ctx }) => {
       const expense = await requireExpenseOwner(input.id, ctx.user.id, ctx.user.role);
 
@@ -300,7 +303,8 @@ export const expensesRouter = router({
         }
       }
 
-      await db.updateExpense(input.id, { status: "claimed", claimDate: new Date() });
+      const effectiveClaimDate = input.claimDate ?? new Date();
+      await db.updateExpense(input.id, { status: "claimed", claimDate: effectiveClaimDate });
       await logHistory({
         expenseId: input.id,
         actionType: "status_changed",
