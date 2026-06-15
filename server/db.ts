@@ -944,3 +944,28 @@ export async function updateBatchProof(
     .set({ proofFileKey, proofFileName, proofFileType })
     .where(eq(reimbursementBatches.id, batchId));
 }
+
+// ─── Autocomplete Suggestions ─────────────────────────────────────────────────
+
+export async function getFieldSuggestions(
+  field: "vendorName" | "itemName",
+  keyword: string,
+  limit: number,
+  userId?: number
+): Promise<string[]> {
+  const db = await getDb();
+  if (!db) return [];
+
+  const col = field === "vendorName" ? expenses.vendorName : expenses.itemName;
+  const conditions = [like(col, `%${keyword}%`)];
+  if (userId) conditions.push(eq(expenses.userId, userId));
+
+  const rows = await db
+    .selectDistinct({ value: col })
+    .from(expenses)
+    .where(and(...conditions))
+    .orderBy(desc(expenses.updatedAt))
+    .limit(limit);
+
+  return rows.map((r) => r.value).filter((v): v is string => !!v);
+}

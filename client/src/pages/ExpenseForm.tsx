@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { Switch } from "@/components/ui/switch";
+import { AutocompleteInput } from "@/components/AutocompleteInput";
 
 const formSchema = z.object({
   companyId: z.string().min(1, "กรุณาเลือกบริษัท"),
@@ -106,6 +107,19 @@ export default function ExpenseForm() {
   }, []);
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // ─── Autocomplete state ──────────────────────────────────────────────────────
+  const [vendorKeyword, setVendorKeyword] = useState("");
+  const [itemKeyword, setItemKeyword] = useState("");
+
+  const { data: vendorSuggestions = [] } = trpc.expenses.suggestions.useQuery(
+    { field: "vendorName", keyword: vendorKeyword },
+    { enabled: vendorKeyword.length >= 1, staleTime: 30_000 }
+  );
+  const { data: itemSuggestions = [] } = trpc.expenses.suggestions.useQuery(
+    { field: "itemName", keyword: itemKeyword },
+    { enabled: itemKeyword.length >= 1, staleTime: 30_000 }
+  );
 
   const uploadMutation = trpc.attachments.upload.useMutation();
   const deleteAttachmentMutation = trpc.attachments.delete.useMutation({
@@ -428,9 +442,11 @@ export default function ExpenseForm() {
               {/* Item Name */}
               <div className="space-y-1.5">
                 <Label>ชื่อรายการ <span className="text-destructive">*</span></Label>
-                <Input
+                <AutocompleteInput
+                  value={watch("itemName") ?? ""}
+                  onChange={(v) => { setValue("itemName", v, { shouldValidate: true }); setItemKeyword(v); }}
+                  suggestions={itemSuggestions}
                   placeholder="ระบุชื่อรายการค่าใช้จ่าย"
-                  {...register("itemName")}
                   className={errors.itemName ? "border-destructive" : ""}
                 />
                 {errors.itemName && <p className="text-destructive text-xs">{errors.itemName.message}</p>}
@@ -564,7 +580,12 @@ export default function ExpenseForm() {
               {/* Vendor & Description */}
               <div className="space-y-1.5">
                 <Label>ผู้รับเงิน / ร้านค้า</Label>
-                <Input placeholder="ชื่อผู้รับเงินหรือร้านค้า" {...register("vendorName")} />
+                <AutocompleteInput
+                  value={watch("vendorName") ?? ""}
+                  onChange={(v) => { setValue("vendorName", v); setVendorKeyword(v); }}
+                  suggestions={vendorSuggestions}
+                  placeholder="ชื่อผู้รับเงินหรือร้านค้า"
+                />
               </div>
 
               <div className="space-y-1.5">

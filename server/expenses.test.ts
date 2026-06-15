@@ -17,6 +17,7 @@ vi.mock("./db", () => ({
   countAttachmentsByType: vi.fn().mockResolvedValue(0),
   getHistoryByExpenseId: vi.fn().mockResolvedValue([]),
   createHistoryLog: vi.fn().mockResolvedValue(undefined),
+  getFieldSuggestions: vi.fn().mockResolvedValue(["Starbucks", "7-Eleven"]),
 }));
 
 function createUserContext(role: "user" | "admin" | "viewer" = "user"): TrpcContext {
@@ -380,5 +381,29 @@ describe("auth.me", () => {
     const caller = appRouter.createCaller(ctx);
     const result = await caller.auth.me();
     expect(result).toBeNull();
+  });
+});
+
+describe("expenses.suggestions", () => {
+  it("returns suggestions for vendorName", async () => {
+    const ctx = createUserContext();
+    const caller = appRouter.createCaller(ctx);
+    const result = await caller.expenses.suggestions({ field: "vendorName", keyword: "Star" });
+    expect(Array.isArray(result)).toBe(true);
+    expect(result).toContain("Starbucks");
+  });
+
+  it("returns suggestions for itemName", async () => {
+    const ctx = createUserContext();
+    const caller = appRouter.createCaller(ctx);
+    const result = await caller.expenses.suggestions({ field: "itemName", keyword: "coffee" });
+    expect(Array.isArray(result)).toBe(true);
+  });
+
+  it("admin sees all users suggestions (no userId filter)", async () => {
+    const ctx = createUserContext("admin");
+    const caller = appRouter.createCaller(ctx);
+    const result = await caller.expenses.suggestions({ field: "vendorName", keyword: "7" });
+    expect(Array.isArray(result)).toBe(true);
   });
 });

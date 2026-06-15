@@ -425,4 +425,19 @@ export const expensesRouter = router({
     ]);
     return { companies, categories, paymentMethods };
   }),
+
+  // ─── Autocomplete suggestions ──────────────────────────────────────────────
+  suggestions: protectedProcedure
+    .input(
+      z.object({
+        field: z.enum(["vendorName", "itemName"]),
+        keyword: z.string().min(1).max(100),
+        limit: z.number().min(1).max(20).default(8),
+      })
+    )
+    .query(async ({ input, ctx }) => {
+      // Admin/viewer sees all; regular user sees only their own history
+      const userId = ctx.user.role === "admin" || ctx.user.role === "viewer" ? undefined : ctx.user.id;
+      return db.getFieldSuggestions(input.field, input.keyword, input.limit, userId);
+    }),
 });

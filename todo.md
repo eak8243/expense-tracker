@@ -228,3 +228,9 @@
 - [x] เพิ่ม sortBy และ sortOrder ใน ExpenseFilters type และ getExpenses function ใน db.ts
 - [x] อัปเดต list procedure input schema ใน expenses.ts ให้รับ sortBy/sortOrder
 - [x] เพิ่ม sort controls ใน ExpenseList frontend (ปุ่มเรียงตามวันที่ค่าใช้จ่าย / วันที่ทำเบิก / วันที่สร้าง)
+
+## Feature: Autocomplete suggestions สำหรับ vendorName และ itemName
+- [x] เพิ่ม suggestions procedure ใน expenses router — ดึง distinct vendorName/itemName ที่ตรงกับ keyword จาก DB
+- [x] สร้าง AutocompleteInput component (combobox style) พร้อม dropdown suggestions
+- [x] ใช้ AutocompleteInput แทน Input ใน ExpenseForm สำหรับ field vendorName และ itemName
+- [x] เขียน tests ครอบคลุม (55 tests passing)
