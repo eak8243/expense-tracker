@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, inArray, like, lte, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, like, lte, or, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import {
   auditLogs,
@@ -231,6 +231,8 @@ export interface ExpenseFilters {
   dateTo?: Date;
   page?: number;
   pageSize?: number;
+  sortBy?: "expenseDate" | "claimDate" | "createdAt" | "amount";
+  sortOrder?: "asc" | "desc";
 }
 
 export async function getExpenses(filters: ExpenseFilters) {
@@ -297,7 +299,16 @@ export async function getExpenses(filters: ExpenseFilters) {
       .leftJoin(companies, eq(expenses.companyId, companies.id))
       .leftJoin(expenseCategories, eq(expenses.categoryId, expenseCategories.id))
       .where(where)
-      .orderBy(desc(expenses.createdAt))
+      .orderBy(
+        (() => {
+          const col =
+            filters.sortBy === "expenseDate" ? expenses.expenseDate
+            : filters.sortBy === "claimDate" ? expenses.claimDate
+            : filters.sortBy === "amount" ? expenses.amount
+            : expenses.createdAt;
+          return filters.sortOrder === "asc" ? asc(col) : desc(col);
+        })()
+      )
       .limit(pageSize)
       .offset(offset),
     db.select({ count: sql<number>`count(*)` }).from(expenses).where(where),

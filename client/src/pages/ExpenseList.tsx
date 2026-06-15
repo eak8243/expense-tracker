@@ -24,6 +24,9 @@ import {
   Download,
   Banknote,
   CheckSquare,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
 } from "lucide-react";
 import { toast } from "sonner";
 import { formatAmount } from "@/lib/utils";
@@ -49,7 +52,11 @@ export default function ExpenseList() {
   const [amountMin, setAmountMin] = useState("");
   const [amountMax, setAmountMax] = useState("");
   const [showFilters, setShowFilters] = useState(false);
+  const [sortBy, setSortBy] = useState<"expenseDate" | "claimDate" | "createdAt" | "amount">("expenseDate");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [page, setPage] = useState(1);
+
+  const toggleSortOrder = () => setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"));
   const PAGE_SIZE = 20;
 
   // Multi-select for batch reimbursement
@@ -78,6 +85,8 @@ export default function ExpenseList() {
     amountMax: amountMax ? parseFloat(amountMax) : undefined,
     page,
     pageSize: PAGE_SIZE,
+    sortBy,
+    sortOrder,
   });
 
   const expenses = expensesData?.data ?? [];
@@ -272,8 +281,8 @@ export default function ExpenseList() {
 
         {/* Search & Filter Bar */}
         <div className="space-y-3">
-          <div className="flex gap-2">
-            <div className="relative flex-1">
+          <div className="flex gap-2 flex-wrap">
+            <div className="relative flex-1 min-w-40">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
                 placeholder="ค้นหาชื่อรายการ, เลขที่, IOU..."
@@ -281,6 +290,35 @@ export default function ExpenseList() {
                 value={search}
                 onChange={(e) => { setSearch(e.target.value); setPage(1); }}
               />
+            </div>
+            {/* Sort controls */}
+            <div className="flex gap-1">
+              <Select
+                value={sortBy}
+                onValueChange={(v) => { setSortBy(v as typeof sortBy); setPage(1); }}
+              >
+                <SelectTrigger className="h-9 w-40 gap-1.5 text-sm">
+                  <ArrowUpDown className="w-3.5 h-3.5 text-muted-foreground" />
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="expenseDate">วันที่ค่าใช้จ่าย</SelectItem>
+                  <SelectItem value="claimDate">วันที่ทำเบิก</SelectItem>
+                  <SelectItem value="createdAt">วันที่สร้าง</SelectItem>
+                  <SelectItem value="amount">จำนวนเงิน</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-9 w-9"
+                title={sortOrder === "asc" ? "น้อยไปหามาก" : "มากไปน้อย"}
+                onClick={() => { toggleSortOrder(); setPage(1); }}
+              >
+                {sortOrder === "asc"
+                  ? <ArrowUp className="w-3.5 h-3.5" />
+                  : <ArrowDown className="w-3.5 h-3.5" />}
+              </Button>
             </div>
             <Button
               variant="outline"

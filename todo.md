@@ -223,3 +223,8 @@
 - [x] เพิ่ม date picker dialog ใน ExpenseDetail เมื่อกดปุ่ม "ทำเบิกแล้ว"
 - [x] แสดง claimedDate ใน ExpenseDetail (มีอยู่แล้ว)
 - [x] เขียน tests ครอบคลุม (52 tests passing)
+
+## Feature: เรียงลำดับรายการค่าใช้จ่ายตามวันที่
+- [x] เพิ่ม sortBy และ sortOrder ใน ExpenseFilters type และ getExpenses function ใน db.ts
+- [x] อัปเดต list procedure input schema ใน expenses.ts ให้รับ sortBy/sortOrder
+- [x] เพิ่ม sort controls ใน ExpenseList frontend (ปุ่มเรียงตามวันที่ค่าใช้จ่าย / วันที่ทำเบิก / วันที่สร้าง)

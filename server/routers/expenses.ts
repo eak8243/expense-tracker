@@ -58,6 +58,8 @@ export const expensesRouter = router({
         dateTo: z.date().optional(),
         page: z.number().default(1),
         pageSize: z.number().default(20),
+        sortBy: z.enum(["expenseDate", "claimDate", "createdAt", "amount"]).optional(),
+        sortOrder: z.enum(["asc", "desc"]).optional(),
       })
     )
     .query(async ({ input, ctx }) => {
