@@ -960,12 +960,24 @@ export async function getFieldSuggestions(
   const conditions = [like(col, `%${keyword}%`)];
   if (userId) conditions.push(eq(expenses.userId, userId));
 
+  // MySQL does not allow ORDER BY on a column not in SELECT DISTINCT list.
+  // Use a subquery: first fetch matching rows ordered by updatedAt, then DISTINCT in outer query.
   const rows = await db
-    .selectDistinct({ value: col })
+    .select({ value: col })
     .from(expenses)
     .where(and(...conditions))
     .orderBy(desc(expenses.updatedAt))
-    .limit(limit);
+    .limit(limit * 5); // fetch more to allow dedup
 
-  return rows.map((r) => r.value).filter((v): v is string => !!v);
+  // Deduplicate in JS while preserving order
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (const r of rows) {
+    if (r.value && !seen.has(r.value)) {
+      seen.add(r.value);
+      result.push(r.value);
+      if (result.length >= limit) break;
+    }
+  }
+  return result;
 }
