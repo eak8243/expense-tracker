@@ -241,3 +241,12 @@
 - [x] เพิ่ม date picker ใน dialog "แนบหลักฐานการได้รับเงิน" สำหรับ reimbursedDate
 - [x] แสดง "วันที่ทำเบิก" (claimDate) และ "วันที่ได้รับเงิน" (reimbursedDate) ใน ExpenseDetail (แสดงทุก status ที่มี claimDate)
 - [x] เขียน tests ครอบคลุม (58 tests passing)
+
+## Bug Fix: Deployment Failure — vite package not found in production
+- [x] แก้ไข server/_core/vite.ts: เปลี่ยน top-level `import { createServer } from "vite"` เป็น dynamic `await import("vite")` ภายใน setupVite()
+- [x] แก้ไข server/_core/vite.ts: เปลี่ยน top-level `import viteConfig from "../../vite.config"` เป็น dynamic import ภายใน setupVite()
+- [x] แก้ไข server/_core/index.ts: เปลี่ยน static import ของ setupVite/serveStatic เป็น lazy dynamic import ผ่าน getViteModule()
+- [x] เพิ่ม --external:../../vite.config.js --external:../../vite.config.ts ใน esbuild build command ใน package.json เพื่อป้องกัน vite.config.ts ถูก bundle เข้า dist/index.js
+- [x] ยืนยัน: dist/index.js ไม่มี top-level import ของ vite อีกต่อไป
+- [x] ยืนยัน: production server start ได้โดยไม่ error (ERR_MODULE_NOT_FOUND: Cannot find package 'vite')
+- [x] 58 tests passing

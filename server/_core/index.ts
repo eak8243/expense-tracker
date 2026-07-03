@@ -7,7 +7,15 @@ import { registerOAuthRoutes } from "./oauth";
 import { registerStorageProxy } from "./storageProxy";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
-import { serveStatic, setupVite } from "./vite";
+// vite.ts is imported lazily so the vite devDependency is never bundled into production dist
+type ViteModule = typeof import("./vite");
+let _viteModule: ViteModule | null = null;
+async function getViteModule(): Promise<ViteModule> {
+  if (!_viteModule) {
+    _viteModule = await import("./vite");
+  }
+  return _viteModule;
+}
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -46,8 +54,10 @@ async function startServer() {
   );
   // development mode uses Vite, production mode uses static files
   if (process.env.NODE_ENV === "development") {
+    const { setupVite } = await getViteModule();
     await setupVite(app, server);
   } else {
+    const { serveStatic } = await getViteModule();
     serveStatic(app);
   }
 
