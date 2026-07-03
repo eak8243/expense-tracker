@@ -88,9 +88,11 @@ export default function ExpenseDetail() {
   const [reimbursedAmount, setReimbursedAmount] = useState("");
   const [reimbursedDialogOpen, setReimbursedDialogOpen] = useState(false);
   const [reimbursedDateInput, setReimbursedDateInput] = useState<Date>(new Date());
+  const [reimbursedDatePopoverOpen, setReimbursedDatePopoverOpen] = useState(false);
   // Claim date dialog
   const [claimDialogOpen, setClaimDialogOpen] = useState(false);
   const [claimDateInput, setClaimDateInput] = useState<Date>(new Date());
+  const [claimDatePopoverOpen, setClaimDatePopoverOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   // USD THB completion dialog
   const [thbDialogOpen, setThbDialogOpen] = useState(false);
@@ -743,7 +745,7 @@ export default function ExpenseDetail() {
             </p>
             <div className="space-y-1.5">
               <Label>วันที่ทำเบิก</Label>
-              <Popover>
+              <Popover open={claimDatePopoverOpen} onOpenChange={setClaimDatePopoverOpen}>
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
@@ -757,7 +759,7 @@ export default function ExpenseDetail() {
                   <Calendar
                     mode="single"
                     selected={claimDateInput}
-                    onSelect={(d) => d && setClaimDateInput(d)}
+                    onSelect={(d) => { if (d) { setClaimDateInput(d); setClaimDatePopoverOpen(false); } }}
                     disabled={(d) => d > new Date()}
                     initialFocus
                   />
@@ -795,7 +797,7 @@ export default function ExpenseDetail() {
             </p>
             <div className="space-y-1.5">
               <Label>วันที่ได้รับเงิน</Label>
-              <Popover>
+              <Popover open={reimbursedDatePopoverOpen} onOpenChange={setReimbursedDatePopoverOpen}>
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
@@ -809,7 +811,7 @@ export default function ExpenseDetail() {
                   <Calendar
                     mode="single"
                     selected={reimbursedDateInput}
-                    onSelect={(d) => d && setReimbursedDateInput(d)}
+                    onSelect={(d) => { if (d) { setReimbursedDateInput(d); setReimbursedDatePopoverOpen(false); } }}
                     disabled={(d) => d > new Date()}
                     initialFocus
                   />
