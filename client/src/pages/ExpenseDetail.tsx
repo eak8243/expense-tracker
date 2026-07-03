@@ -19,6 +19,9 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
 import {
   ArrowLeft,
   Edit,
@@ -32,7 +35,7 @@ import {
   RotateCcw,
   Clock,
   Building2,
-  Calendar,
+  Calendar as CalendarIcon,
   Tag,
   CreditCard,
   User,
@@ -84,11 +87,10 @@ export default function ExpenseDetail() {
   const [uploadType, setUploadType] = useState<"expense_proof" | "reimbursement_proof" | "iou_document">("expense_proof");
   const [reimbursedAmount, setReimbursedAmount] = useState("");
   const [reimbursedDialogOpen, setReimbursedDialogOpen] = useState(false);
-  const today = new Date().toISOString().split("T")[0];
-  const [reimbursedDateInput, setReimbursedDateInput] = useState(today);
+  const [reimbursedDateInput, setReimbursedDateInput] = useState<Date>(new Date());
   // Claim date dialog
   const [claimDialogOpen, setClaimDialogOpen] = useState(false);
-  const [claimDateInput, setClaimDateInput] = useState(today);
+  const [claimDateInput, setClaimDateInput] = useState<Date>(new Date());
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   // USD THB completion dialog
   const [thbDialogOpen, setThbDialogOpen] = useState(false);
@@ -327,7 +329,7 @@ export default function ExpenseDetail() {
                     size="sm"
                     className="gap-1.5 bg-blue-600 hover:bg-blue-500"
                     onClick={() => {
-                      setClaimDateInput(new Date().toISOString().split("T")[0]);
+                      setClaimDateInput(new Date());
                       setClaimDialogOpen(true);
                     }}
                     disabled={markClaimedMutation.isPending}
@@ -740,14 +742,27 @@ export default function ExpenseDetail() {
               ระบุวันที่ที่ยื่นเอกสารเบิกค่าใช้จ่าย
             </p>
             <div className="space-y-1.5">
-              <Label htmlFor="claimDateInput">วันที่ทำเบิก</Label>
-              <Input
-                id="claimDateInput"
-                type="date"
-                value={claimDateInput}
-                onChange={(e) => setClaimDateInput(e.target.value)}
-                max={new Date().toISOString().split("T")[0]}
-              />
+              <Label>วันที่ทำเบิก</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn("w-full justify-start text-left font-normal", !claimDateInput && "text-muted-foreground")}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {claimDateInput ? format(claimDateInput, "d MMMM yyyy", { locale: th }) : "เลือกวันที่"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={claimDateInput}
+                    onSelect={(d) => d && setClaimDateInput(d)}
+                    disabled={(d) => d > new Date()}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
             </div>
           </div>
           <DialogFooter>
@@ -757,8 +772,7 @@ export default function ExpenseDetail() {
             <Button
               className="bg-blue-600 hover:bg-blue-500"
               onClick={() => {
-                const d = claimDateInput ? new Date(claimDateInput) : new Date();
-                markClaimedMutation.mutate({ id: expenseId, claimDate: d });
+                markClaimedMutation.mutate({ id: expenseId, claimDate: claimDateInput ?? new Date() });
                 setClaimDialogOpen(false);
               }}
               disabled={markClaimedMutation.isPending || !claimDateInput}
@@ -780,14 +794,27 @@ export default function ExpenseDetail() {
               กรุณาตรวจสอบว่าได้แนบหลักฐานการรับเงินคืนแล้ว
             </p>
             <div className="space-y-1.5">
-              <Label htmlFor="reimbursedDateInput">วันที่ได้รับเงิน</Label>
-              <Input
-                id="reimbursedDateInput"
-                type="date"
-                value={reimbursedDateInput}
-                onChange={(e) => setReimbursedDateInput(e.target.value)}
-                max={today}
-              />
+              <Label>วันที่ได้รับเงิน</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn("w-full justify-start text-left font-normal", !reimbursedDateInput && "text-muted-foreground")}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {reimbursedDateInput ? format(reimbursedDateInput, "d MMMM yyyy", { locale: th }) : "เลือกวันที่"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={reimbursedDateInput}
+                    onSelect={(d) => d && setReimbursedDateInput(d)}
+                    disabled={(d) => d > new Date()}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
             </div>
             <div className="space-y-1.5">
               <Label>จำนวนเงินที่ได้รับ (ถ้ามี)</Label>
@@ -815,7 +842,7 @@ export default function ExpenseDetail() {
                 markReimbursedMutation.mutate({
                   id: expenseId,
                   reimbursedAmount: reimbursedAmount ? parseFloat(reimbursedAmount) : undefined,
-                  reimbursedDate: reimbursedDateInput ? new Date(reimbursedDateInput) : new Date(),
+                  reimbursedDate: reimbursedDateInput ?? new Date(),
                 })
               }
               disabled={markReimbursedMutation.isPending}
