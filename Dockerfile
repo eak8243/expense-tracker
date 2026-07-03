@@ -34,8 +34,8 @@ COPY patches/ ./patches/
 RUN pnpm install --frozen-lockfile --prod
 
 # Copy built artifacts from builder stage
+# vite.config.ts sets outDir to dist/public, so all build output is under dist/
 COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/client/dist ./client/dist
 
 # Copy drizzle schema for migrations (if needed at runtime)
 COPY drizzle/ ./drizzle/
@@ -49,3 +49,5 @@ EXPOSE 3000
 ENV NODE_ENV=production
 
 CMD ["node", "dist/index.js"]
+# Note: vite builds to dist/public/, esbuild builds server to dist/index.js
+# Both are under dist/ so a single COPY --from=builder /app/dist ./dist covers everything
