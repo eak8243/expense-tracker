@@ -84,9 +84,10 @@ export default function ExpenseDetail() {
   const [uploadType, setUploadType] = useState<"expense_proof" | "reimbursement_proof" | "iou_document">("expense_proof");
   const [reimbursedAmount, setReimbursedAmount] = useState("");
   const [reimbursedDialogOpen, setReimbursedDialogOpen] = useState(false);
+  const today = new Date().toISOString().split("T")[0];
+  const [reimbursedDateInput, setReimbursedDateInput] = useState(today);
   // Claim date dialog
   const [claimDialogOpen, setClaimDialogOpen] = useState(false);
-  const today = new Date().toISOString().split("T")[0];
   const [claimDateInput, setClaimDateInput] = useState(today);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   // USD THB completion dialog
@@ -473,7 +474,7 @@ export default function ExpenseDetail() {
                   </p>
                 </div>
 
-                {expense.status === "claimed" && expense.claimDate && (
+                {expense.claimDate && (
                   <div className="flex items-center justify-between text-sm">
                     <p className="text-muted-foreground">วันที่ทำเบิก</p>
                     <p>{formatDate(expense.claimDate)}</p>
@@ -779,6 +780,16 @@ export default function ExpenseDetail() {
               กรุณาตรวจสอบว่าได้แนบหลักฐานการรับเงินคืนแล้ว
             </p>
             <div className="space-y-1.5">
+              <Label htmlFor="reimbursedDateInput">วันที่ได้รับเงิน</Label>
+              <Input
+                id="reimbursedDateInput"
+                type="date"
+                value={reimbursedDateInput}
+                onChange={(e) => setReimbursedDateInput(e.target.value)}
+                max={today}
+              />
+            </div>
+            <div className="space-y-1.5">
               <Label>จำนวนเงินที่ได้รับ (ถ้ามี)</Label>
               <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">฿</span>
@@ -804,6 +815,7 @@ export default function ExpenseDetail() {
                 markReimbursedMutation.mutate({
                   id: expenseId,
                   reimbursedAmount: reimbursedAmount ? parseFloat(reimbursedAmount) : undefined,
+                  reimbursedDate: reimbursedDateInput ? new Date(reimbursedDateInput) : new Date(),
                 })
               }
               disabled={markReimbursedMutation.isPending}

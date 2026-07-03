@@ -234,3 +234,10 @@
 - [x] สร้าง AutocompleteInput component (combobox style) พร้อม dropdown suggestions
 - [x] ใช้ AutocompleteInput แทน Input ใน ExpenseForm สำหรับ field vendorName และ itemName
 - [x] เขียน tests ครอบคลุม (55 tests passing)
+
+## Feature: วันที่ทำเบิก / วันที่ได้รับเงิน
+- [x] ตรวจสอบ schema ว่ามี reimbursedDate column หรือไม่ (มีอยู่แล้ว)
+- [x] อัปเดต markReimbursed procedure ให้รับ reimbursedDate จาก input
+- [x] เพิ่ม date picker ใน dialog "แนบหลักฐานการได้รับเงิน" สำหรับ reimbursedDate
+- [x] แสดง "วันที่ทำเบิก" (claimDate) และ "วันที่ได้รับเงิน" (reimbursedDate) ใน ExpenseDetail (แสดงทุก status ที่มี claimDate)
+- [x] เขียน tests ครอบคลุม (58 tests passing)

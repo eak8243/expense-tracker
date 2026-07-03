@@ -407,3 +407,66 @@ describe("expenses.suggestions", () => {
     expect(Array.isArray(result)).toBe(true);
   });
 });
+
+describe("expenses.markReimbursed with reimbursedDate", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("uses provided reimbursedDate when given", async () => {
+    const { updateExpense, getExpenseById, countAttachmentsByType } = await import("./db");
+    vi.mocked(getExpenseById).mockResolvedValue({
+      id: 1,
+      status: "claimed",
+      userId: 1,
+    } as any);
+    vi.mocked(countAttachmentsByType).mockResolvedValue(1);
+    vi.mocked(updateExpense).mockResolvedValue(undefined);
+
+    const ctx = createUserContext("admin");
+    const caller = appRouter.createCaller(ctx);
+    const customDate = new Date("2026-06-01");
+    await caller.expenses.markReimbursed({ id: 1, reimbursedDate: customDate });
+
+    expect(updateExpense).toHaveBeenCalledWith(
+      1,
+      expect.objectContaining({ reimbursedDate: customDate, status: "reimbursed" })
+    );
+  });
+
+  it("falls back to today when reimbursedDate not provided", async () => {
+    const { updateExpense, getExpenseById, countAttachmentsByType } = await import("./db");
+    vi.mocked(getExpenseById).mockResolvedValue({
+      id: 1,
+      status: "claimed",
+      userId: 1,
+    } as any);
+    vi.mocked(countAttachmentsByType).mockResolvedValue(1);
+    vi.mocked(updateExpense).mockResolvedValue(undefined);
+
+    const ctx = createUserContext("admin");
+    const caller = appRouter.createCaller(ctx);
+    await caller.expenses.markReimbursed({ id: 1 });
+
+    expect(updateExpense).toHaveBeenCalledWith(
+      1,
+      expect.objectContaining({ status: "reimbursed" })
+    );
+    const callArg = vi.mocked(updateExpense).mock.calls[0][1] as any;
+    expect(callArg.reimbursedDate).toBeInstanceOf(Date);
+  });
+
+  it("throws when no reimbursement proof attached", async () => {
+    const { getExpenseById, countAttachmentsByType } = await import("./db");
+    vi.mocked(getExpenseById).mockResolvedValue({
+      id: 1,
+      status: "claimed",
+      userId: 1,
+    } as any);
+    vi.mocked(countAttachmentsByType).mockResolvedValue(0);
+
+    const ctx = createUserContext("admin");
+    const caller = appRouter.createCaller(ctx);
+    await expect(caller.expenses.markReimbursed({ id: 1 })).rejects.toThrow();
+  });
+});

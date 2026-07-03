@@ -324,6 +324,7 @@ export const expensesRouter = router({
       z.object({
         id: z.number(),
         reimbursedAmount: z.number().optional(),
+        reimbursedDate: z.date().optional(),
       })
     )
     .mutation(async ({ input, ctx }) => {
@@ -340,7 +341,7 @@ export const expensesRouter = router({
 
       await db.updateExpense(input.id, {
         status: "reimbursed",
-        reimbursedDate: new Date(),
+        reimbursedDate: input.reimbursedDate ?? new Date(),
         reimbursedAmount: input.reimbursedAmount ? String(input.reimbursedAmount) : undefined,
       });
 
