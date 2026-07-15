@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback } from "react";
+// v2 - Calendar popover fix
 import { FilePreviewModal } from "@/components/FilePreviewModal";
 import { Link, useParams, useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
