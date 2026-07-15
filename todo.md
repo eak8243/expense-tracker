@@ -1,6 +1,7 @@
 # Expense Tracker - TODO
 
 ## Phase 1: Database Schema & Migration
+<!-- Last updated: 2026-07-15 -->
 - [x] Design and create full database schema in drizzle/schema.ts
 - [x] Generate and apply migration SQL
 - [x] Create seed data (admin user, sample companies, categories, payment methods, sample expenses)
