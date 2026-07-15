@@ -20,8 +20,6 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import {
   ArrowLeft,
@@ -88,12 +86,10 @@ export default function ExpenseDetail() {
   const [uploadType, setUploadType] = useState<"expense_proof" | "reimbursement_proof" | "iou_document">("expense_proof");
   const [reimbursedAmount, setReimbursedAmount] = useState("");
   const [reimbursedDialogOpen, setReimbursedDialogOpen] = useState(false);
-  const [reimbursedDateInput, setReimbursedDateInput] = useState<Date>(new Date());
-  const [reimbursedDatePopoverOpen, setReimbursedDatePopoverOpen] = useState(false);
+  const [reimbursedDateInput, setReimbursedDateInput] = useState<string>(() => new Date().toISOString().slice(0, 10));
   // Claim date dialog
   const [claimDialogOpen, setClaimDialogOpen] = useState(false);
-  const [claimDateInput, setClaimDateInput] = useState<Date>(new Date());
-  const [claimDatePopoverOpen, setClaimDatePopoverOpen] = useState(false);
+  const [claimDateInput, setClaimDateInput] = useState<string>(() => new Date().toISOString().slice(0, 10));
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   // USD THB completion dialog
   const [thbDialogOpen, setThbDialogOpen] = useState(false);
@@ -332,7 +328,7 @@ export default function ExpenseDetail() {
                     size="sm"
                     className="gap-1.5 bg-blue-600 hover:bg-blue-500"
                     onClick={() => {
-                      setClaimDateInput(new Date());
+                      setClaimDateInput(new Date().toISOString().slice(0, 10));
                       setClaimDialogOpen(true);
                     }}
                     disabled={markClaimedMutation.isPending}
@@ -391,7 +387,7 @@ export default function ExpenseDetail() {
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <InfoRow icon={Building2} label="บริษัท" value={(expense as any).companyName ?? "—"} />
-                  <InfoRow icon={Calendar} label="วันที่" value={formatDate(expense.expenseDate)} />
+                  <InfoRow icon={CalendarIcon} label="วันที่" value={formatDate(expense.expenseDate)} />
                   <InfoRow icon={Tag} label="หมวดหมู่" value={(expense as any).categoryName ?? "—"} />
                   <InfoRow icon={CreditCard} label="วิธีชำระ" value={(expense as any).paymentMethodName ?? "—"} />
                   <InfoRow icon={User} label="ผู้บันทึก" value={(expense as any).userName ?? "—"} />
@@ -746,26 +742,13 @@ export default function ExpenseDetail() {
             </p>
             <div className="space-y-1.5">
               <Label>วันที่ทำเบิก</Label>
-              <Popover open={claimDatePopoverOpen} onOpenChange={setClaimDatePopoverOpen}>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn("w-full justify-start text-left font-normal", !claimDateInput && "text-muted-foreground")}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {claimDateInput ? format(claimDateInput, "d MMMM yyyy", { locale: th }) : "เลือกวันที่"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={claimDateInput}
-                    onSelect={(d) => { if (d) { setClaimDateInput(d); setClaimDatePopoverOpen(false); } }}
-                    disabled={(d) => d > new Date()}
-                    initialFocus
-                  />
-                </PopoverContent>
-              </Popover>
+              <Input
+                type="date"
+                value={claimDateInput}
+                max={new Date().toISOString().slice(0, 10)}
+                onChange={(e) => setClaimDateInput(e.target.value)}
+                className="w-full"
+              />
             </div>
           </div>
           <DialogFooter>
@@ -775,7 +758,7 @@ export default function ExpenseDetail() {
             <Button
               className="bg-blue-600 hover:bg-blue-500"
               onClick={() => {
-                markClaimedMutation.mutate({ id: expenseId, claimDate: claimDateInput ?? new Date() });
+                markClaimedMutation.mutate({ id: expenseId, claimDate: claimDateInput ? new Date(claimDateInput) : new Date() });
                 setClaimDialogOpen(false);
               }}
               disabled={markClaimedMutation.isPending || !claimDateInput}
@@ -798,26 +781,13 @@ export default function ExpenseDetail() {
             </p>
             <div className="space-y-1.5">
               <Label>วันที่ได้รับเงิน</Label>
-              <Popover open={reimbursedDatePopoverOpen} onOpenChange={setReimbursedDatePopoverOpen}>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn("w-full justify-start text-left font-normal", !reimbursedDateInput && "text-muted-foreground")}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {reimbursedDateInput ? format(reimbursedDateInput, "d MMMM yyyy", { locale: th }) : "เลือกวันที่"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={reimbursedDateInput}
-                    onSelect={(d) => { if (d) { setReimbursedDateInput(d); setReimbursedDatePopoverOpen(false); } }}
-                    disabled={(d) => d > new Date()}
-                    initialFocus
-                  />
-                </PopoverContent>
-              </Popover>
+              <Input
+                type="date"
+                value={reimbursedDateInput}
+                max={new Date().toISOString().slice(0, 10)}
+                onChange={(e) => setReimbursedDateInput(e.target.value)}
+                className="w-full"
+              />
             </div>
             <div className="space-y-1.5">
               <Label>จำนวนเงินที่ได้รับ (ถ้ามี)</Label>
@@ -845,7 +815,7 @@ export default function ExpenseDetail() {
                 markReimbursedMutation.mutate({
                   id: expenseId,
                   reimbursedAmount: reimbursedAmount ? parseFloat(reimbursedAmount) : undefined,
-                  reimbursedDate: reimbursedDateInput ?? new Date(),
+                  reimbursedDate: reimbursedDateInput ? new Date(reimbursedDateInput) : new Date(),
                 })
               }
               disabled={markReimbursedMutation.isPending}
