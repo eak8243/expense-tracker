@@ -254,3 +254,6 @@
 
 ## UI Improvement: รูปแบบวันที่ภาษาไทย
 - [x] ปรับช่องวันที่ใน dialog ทำเบิกและรับเงินคืนให้แสดงวัน/เดือน/ปีภาษาไทย โดยไม่ใช้ Calendar Popover
+
+## Deployment: Ubuntu Server
+- [x] จัดทำขั้นตอน deploy Expense Tracker บน Ubuntu server พร้อมการตั้งค่า environment, database และ Nginx
