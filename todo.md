@@ -264,3 +264,5 @@
 ## Feature: บันทึกค่าใช้จ่ายผ่าน LINE OA
 - [x] ออกแบบการเชื่อม LINE OA, การเชื่อมบัญชีผู้ใช้ และการสร้างรายการค่าใช้จ่ายแบบร่างผ่าน webhook
 - [ ] พัฒนา LINE OA expense capture ตามรูปแบบที่ผู้ใช้เลือก พร้อม webhook signature verification และบัญชีที่เชื่อมโยง
+- [ ] เตรียม LINE Official Account และ Messaging API Channel ใหม่สำหรับเชื่อมระบบ
+- [x] จัดทำ checklist การสร้าง LINE OA และ Messaging API Channel ใหม่
