@@ -257,3 +257,6 @@
 
 ## Deployment: Ubuntu Server
 - [x] จัดทำขั้นตอน deploy Expense Tracker บน Ubuntu server พร้อมการตั้งค่า environment, database และ Nginx
+
+## Migration: ย้ายข้อมูลเดิมไป Ubuntu Server
+- [x] จัดทำ runbook สำหรับ export/import ฐานข้อมูล ไฟล์แนบ การตรวจสอบข้อมูล และ cutover ไปยัง server ใหม่
