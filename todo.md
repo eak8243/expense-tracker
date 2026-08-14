@@ -266,3 +266,5 @@
 - [ ] พัฒนา LINE OA expense capture ตามรูปแบบที่ผู้ใช้เลือก พร้อม webhook signature verification และบัญชีที่เชื่อมโยง
 - [ ] เตรียม LINE Official Account และ Messaging API Channel ใหม่สำหรับเชื่อมระบบ
 - [x] จัดทำ checklist การสร้าง LINE OA และ Messaging API Channel ใหม่
+- [x] จัดทำขั้นตอนและออกแบบแบบฟอร์ม LIFF สำหรับเพิ่มรายการค่าใช้จ่ายบนมือถือ
+- [ ] พัฒนา LIFF mobile form ที่ `/liff/expense/new` พร้อมการตรวจ token และสร้าง expense แบบ draft
