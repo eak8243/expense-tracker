@@ -251,3 +251,6 @@
 - [x] ยืนยัน: dist/index.js ไม่มี top-level import ของ vite อีกต่อไป
 - [x] ยืนยัน: production server start ได้โดยไม่ error (ERR_MODULE_NOT_FOUND: Cannot find package 'vite')
 - [x] 58 tests passing
+
+## UI Improvement: รูปแบบวันที่ภาษาไทย
+- [x] ปรับช่องวันที่ใน dialog ทำเบิกและรับเงินคืนให้แสดงวัน/เดือน/ปีภาษาไทย โดยไม่ใช้ Calendar Popover

@@ -48,6 +48,7 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { th } from "date-fns/locale";
 import { formatAmount } from "@/lib/utils";
+import { formatThaiDateInput, isFutureDate, parseThaiDateInput } from "@/lib/thaiDate";
 
 function formatDate(d: Date | string | null | undefined) {
   if (!d) return "—";
@@ -86,10 +87,10 @@ export default function ExpenseDetail() {
   const [uploadType, setUploadType] = useState<"expense_proof" | "reimbursement_proof" | "iou_document">("expense_proof");
   const [reimbursedAmount, setReimbursedAmount] = useState("");
   const [reimbursedDialogOpen, setReimbursedDialogOpen] = useState(false);
-  const [reimbursedDateInput, setReimbursedDateInput] = useState<string>(() => new Date().toISOString().slice(0, 10));
+  const [reimbursedDateInput, setReimbursedDateInput] = useState<string>(() => formatThaiDateInput(new Date()));
   // Claim date dialog
   const [claimDialogOpen, setClaimDialogOpen] = useState(false);
-  const [claimDateInput, setClaimDateInput] = useState<string>(() => new Date().toISOString().slice(0, 10));
+  const [claimDateInput, setClaimDateInput] = useState<string>(() => formatThaiDateInput(new Date()));
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   // USD THB completion dialog
   const [thbDialogOpen, setThbDialogOpen] = useState(false);
@@ -328,7 +329,7 @@ export default function ExpenseDetail() {
                     size="sm"
                     className="gap-1.5 bg-blue-600 hover:bg-blue-500"
                     onClick={() => {
-                      setClaimDateInput(new Date().toISOString().slice(0, 10));
+                      setClaimDateInput(formatThaiDateInput(new Date()));
                       setClaimDialogOpen(true);
                     }}
                     disabled={markClaimedMutation.isPending}
@@ -743,12 +744,19 @@ export default function ExpenseDetail() {
             <div className="space-y-1.5">
               <Label>วันที่ทำเบิก</Label>
               <Input
-                type="date"
+                type="text"
+                inputMode="numeric"
                 value={claimDateInput}
-                max={new Date().toISOString().slice(0, 10)}
                 onChange={(e) => setClaimDateInput(e.target.value)}
+                onBlur={() => {
+                  const date = parseThaiDateInput(claimDateInput);
+                  if (date) setClaimDateInput(formatThaiDateInput(date));
+                }}
+                placeholder="วว/ดด/ปปปป เช่น 15/07/2569"
+                aria-describedby="claim-date-help"
                 className="w-full"
               />
+              <p id="claim-date-help" className="text-xs text-muted-foreground">รูปแบบ วัน/เดือน/ปี เช่น 15/07/2569</p>
             </div>
           </div>
           <DialogFooter>
@@ -758,7 +766,16 @@ export default function ExpenseDetail() {
             <Button
               className="bg-blue-600 hover:bg-blue-500"
               onClick={() => {
-                markClaimedMutation.mutate({ id: expenseId, claimDate: claimDateInput ? new Date(claimDateInput) : new Date() });
+                const claimDate = parseThaiDateInput(claimDateInput);
+                if (!claimDate) {
+                  toast.error("กรุณาระบุวันที่ทำเบิกในรูปแบบ วัน/เดือน/ปี");
+                  return;
+                }
+                if (isFutureDate(claimDate)) {
+                  toast.error("วันที่ทำเบิกต้องไม่เป็นวันในอนาคต");
+                  return;
+                }
+                markClaimedMutation.mutate({ id: expenseId, claimDate });
                 setClaimDialogOpen(false);
               }}
               disabled={markClaimedMutation.isPending || !claimDateInput}
@@ -782,12 +799,19 @@ export default function ExpenseDetail() {
             <div className="space-y-1.5">
               <Label>วันที่ได้รับเงิน</Label>
               <Input
-                type="date"
+                type="text"
+                inputMode="numeric"
                 value={reimbursedDateInput}
-                max={new Date().toISOString().slice(0, 10)}
                 onChange={(e) => setReimbursedDateInput(e.target.value)}
+                onBlur={() => {
+                  const date = parseThaiDateInput(reimbursedDateInput);
+                  if (date) setReimbursedDateInput(formatThaiDateInput(date));
+                }}
+                placeholder="วว/ดด/ปปปป เช่น 15/07/2569"
+                aria-describedby="reimbursed-date-help"
                 className="w-full"
               />
+              <p id="reimbursed-date-help" className="text-xs text-muted-foreground">รูปแบบ วัน/เดือน/ปี เช่น 15/07/2569</p>
             </div>
             <div className="space-y-1.5">
               <Label>จำนวนเงินที่ได้รับ (ถ้ามี)</Label>
@@ -811,13 +835,22 @@ export default function ExpenseDetail() {
             </Button>
             <Button
               className="bg-emerald-600 hover:bg-emerald-500"
-              onClick={() =>
+              onClick={() => {
+                const reimbursedDate = parseThaiDateInput(reimbursedDateInput);
+                if (!reimbursedDate) {
+                  toast.error("กรุณาระบุวันที่ได้รับเงินในรูปแบบ วัน/เดือน/ปี");
+                  return;
+                }
+                if (isFutureDate(reimbursedDate)) {
+                  toast.error("วันที่ได้รับเงินต้องไม่เป็นวันในอนาคต");
+                  return;
+                }
                 markReimbursedMutation.mutate({
                   id: expenseId,
                   reimbursedAmount: reimbursedAmount ? parseFloat(reimbursedAmount) : undefined,
-                  reimbursedDate: reimbursedDateInput ? new Date(reimbursedDateInput) : new Date(),
-                })
-              }
+                  reimbursedDate,
+                });
+              }}
               disabled={markReimbursedMutation.isPending}
             >
               {markReimbursedMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "ยืนยัน"}
