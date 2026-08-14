@@ -260,3 +260,7 @@
 
 ## Migration: ย้ายข้อมูลเดิมไป Ubuntu Server
 - [x] จัดทำ runbook สำหรับ export/import ฐานข้อมูล ไฟล์แนบ การตรวจสอบข้อมูล และ cutover ไปยัง server ใหม่
+
+## Feature: บันทึกค่าใช้จ่ายผ่าน LINE OA
+- [x] ออกแบบการเชื่อม LINE OA, การเชื่อมบัญชีผู้ใช้ และการสร้างรายการค่าใช้จ่ายแบบร่างผ่าน webhook
+- [ ] พัฒนา LINE OA expense capture ตามรูปแบบที่ผู้ใช้เลือก พร้อม webhook signature verification และบัญชีที่เชื่อมโยง
